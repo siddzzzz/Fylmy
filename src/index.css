@@ -1,0 +1,153 @@
+:root {
+  --font-main: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* Workstation Graphite / Charcoal Palette (DaVinci Resolve / Premiere Pro Style) */
+  --bg-app: #101012;
+  --bg-header: #151518;
+  --bg-surface: #18181c;
+  --bg-surface-hover: #222227;
+  --bg-card: #1c1c21;
+  --bg-panel: #161619;
+  --bg-dock: #141417;
+  --bg-timeline: #111114;
+  --bg-track: #1a1a1f;
+  --bg-track-dark: #131316;
+
+  /* Restrained Professional Studio Accents (Zero Purple Gradients!) */
+  --studio-blue: #2563eb;
+  --studio-blue-hover: #1d4ed8;
+  --studio-amber: #d97706;
+  --studio-amber-bright: #f59e0b;
+  --studio-cyan: #0284c7;
+  --studio-emerald: #059669;
+  --studio-red: #dc2626;
+
+  /* Track-specific matte studio colors */
+  --track-v2: #1e40af;
+  --track-v1: #1d4ed8;
+  --track-blur: #b45309;
+  --track-text: #b45309;
+  --track-a1: #047857;
+  --track-a2: #059669;
+
+  /* Text & Foreground */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-faint: #475569;
+
+  /* Precision Technical Borders */
+  --border-subtle: #27272e;
+  --border-light: #34343d;
+  --border-strong: #454552;
+  --border-focus: #3b82f6;
+
+  /* Shadows - Minimalist & Deep */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.7);
+
+  /* Layout Dimensions */
+  --header-height: 48px;
+  --timeline-header-height: 38px;
+  --track-height: 44px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* Precision Workstation Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: #33333d;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #474754;
+}
+
+/* Precision Technical Range Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  background: #25252c;
+  border: 1px solid #32323a;
+  border-radius: 2px;
+  height: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #d4d4d8;
+  border: 1px solid #18181b;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #ffffff;
+}
+
+/* Tactile Workstation Button */
+button {
+  font-family: var(--font-main);
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Numeric readout badges in Inspector */
+.val-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: #121215;
+  border: 1px solid #2d2d35;
+  color: #cbd5e1;
+  padding: 1px 6px;
+  border-radius: 3px;
+  min-width: 44px;
+  text-align: right;
+}
