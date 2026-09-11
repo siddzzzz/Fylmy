@@ -18,7 +18,7 @@ export function ExportModal({
 }) {
   const [resolution, setResolution] = useState('1080p');
   const [fps, setFps] = useState(30);
-  const [format, setFormat] = useState('webm');
+  const [format, setFormat] = useState('mp4');
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [exportResult, setExportResult] = useState(null);
@@ -46,6 +46,33 @@ export function ExportModal({
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleSaveFile = () => {
+    if (!exportResult || !exportResult.downloadUrl) return;
+    let safeName = exportResult.filename || 'Untitled_Video.mp4';
+    const expectedExt = format === 'webm' ? '.webm' : '.mp4';
+    if (!safeName.toLowerCase().endsWith('.mp4') && !safeName.toLowerCase().endsWith('.webm')) {
+      safeName += expectedExt;
+    }
+
+    const a = document.createElement('a');
+    a.href = exportResult.downloadUrl;
+    a.setAttribute('download', safeName);
+    a.download = safeName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+    }, 200);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
   return (
@@ -172,8 +199,8 @@ export function ExportModal({
                       outline: 'none',
                     }}
                   >
+                    <option value="mp4">MP4 (H.264 / AVC)</option>
                     <option value="webm">WebM (VP9 Codec)</option>
-                    <option value="mp4">MP4 (H.264 AVC)</option>
                   </select>
                 </div>
               </div>
@@ -257,32 +284,37 @@ export function ExportModal({
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff' }}>
                   Render Job Complete
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-                  Your video has been rendered without watermarks.
+                <div style={{ fontSize: 12, color: '#60a5fa', fontFamily: 'var(--font-mono)', marginTop: 4, fontWeight: 600 }}>
+                  {exportResult.filename}
                 </div>
+                {exportResult.size ? (
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    Size: {formatFileSize(exportResult.size)}
+                  </div>
+                ) : null}
               </div>
 
               {/* Download Button */}
-              <a
-                href={exportResult.downloadUrl}
-                download={exportResult.filename}
+              <button
+                onClick={handleSaveFile}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 7,
-                  padding: '8px 20px',
+                  padding: '9px 22px',
                   borderRadius: 4,
                   background: '#059669',
                   border: '1px solid #10b981',
                   color: '#ffffff',
                   fontWeight: 700,
-                  fontSize: 12,
-                  textDecoration: 'none',
+                  fontSize: 13,
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  cursor: 'pointer',
                 }}
               >
-                <Download size={14} />
+                <Download size={15} />
                 <span>Save Video File</span>
-              </a>
+              </button>
             </div>
           )}
 

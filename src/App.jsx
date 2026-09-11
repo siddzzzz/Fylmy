@@ -707,6 +707,7 @@ export default function App() {
       mediaAssets,
       aspectRatioConfig: currentAspectConfig,
       duration: totalDuration,
+      projectName,
       exportSettings,
       onProgress: exportSettings.onProgress,
     });
