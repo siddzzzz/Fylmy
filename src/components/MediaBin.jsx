@@ -16,6 +16,7 @@ import { formatSecondsOnly, FILTER_PRESETS } from '../types/defaults';
 
 export function MediaBin({
   mediaAssets,
+  tracks = [],
   onImportFiles,
   onAddDemoClip,
   onAddDemoAudio,
@@ -23,10 +24,14 @@ export function MediaBin({
   onAddBlurToTimeline,
   onAddTextToTimeline,
   onApplyFilterPreset,
+  onAddTrack,
   selectedClip,
   isGeneratingDemo,
 }) {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'blur' | 'text' | 'filters'
+
+  const videoTracks = tracks.filter((t) => t.type === 'video');
+  const audioTracks = tracks.filter((t) => t.type === 'audio');
 
   return (
     <aside style={{
@@ -241,32 +246,106 @@ export function MediaBin({
                         </div>
                       </div>
 
-                      {/* Info & Add */}
-                      <div style={{ padding: '5px 7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {/* Info & Multi-Layer Add Options */}
+                      <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <span style={{
                           fontSize: 11,
                           fontWeight: 500,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          maxWidth: 80,
                           color: '#cbd5e1',
                         }} title={asset.name}>
                           {asset.name}
                         </span>
-                        <button
-                          onClick={() => onAddClipToTimeline(asset)}
-                          title="Append to Timeline"
-                          style={{
-                            padding: 3,
-                            borderRadius: 3,
-                            background: '#272733',
-                            border: '1px solid #39394a',
-                            color: '#ffffff',
-                          }}
-                        >
-                          <Plus size={11} />
-                        </button>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center', justifyContent: 'flex-end' }}>
+                          {asset.type !== 'audio' ? (
+                            <>
+                              {/* Dynamic Video Layers */}
+                              {[...videoTracks].reverse().map((vt) => (
+                                <button
+                                  key={vt.id}
+                                  onClick={() => onAddClipToTimeline(asset, vt.id)}
+                                  title={`Add footage to ${vt.name}`}
+                                  style={{
+                                    padding: '2px 5px',
+                                    borderRadius: 2,
+                                    background: vt.id === 'track-v1' ? '#1d4ed8' : '#1e3a8a',
+                                    border: vt.id === 'track-v1' ? '1px solid #2563eb' : '1px solid #3b82f6',
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    color: vt.id === 'track-v1' ? '#ffffff' : '#93c5fd',
+                                  }}
+                                >
+                                  +{vt.code || vt.name.split(' ')[0]}
+                                </button>
+                              ))}
+                              {/* Add to New Layer */}
+                              <button
+                                onClick={() => onAddClipToTimeline(asset, 'new_video_layer')}
+                                title="Add footage to a brand new Video Layer (V...)"
+                                style={{
+                                  padding: '2px 5px',
+                                  borderRadius: 2,
+                                  background: '#22222c',
+                                  border: '1px solid #47475a',
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  color: '#e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 2,
+                                }}
+                              >
+                                <Plus size={9} color="#60a5fa" />
+                                <span>Layer</span>
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {/* Dynamic Audio Layers */}
+                              {audioTracks.map((at) => (
+                                <button
+                                  key={at.id}
+                                  onClick={() => onAddClipToTimeline(asset, at.id)}
+                                  title={`Add audio to ${at.name}`}
+                                  style={{
+                                    padding: '2px 5px',
+                                    borderRadius: 2,
+                                    background: at.id === 'track-a1' ? '#047857' : '#065f46',
+                                    border: at.id === 'track-a1' ? '1px solid #059669' : '1px solid #10b981',
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    color: at.id === 'track-a1' ? '#ffffff' : '#6ee7b7',
+                                  }}
+                                >
+                                  +{at.code || at.name.split(' ')[0]}
+                                </button>
+                              ))}
+                              {/* Add to New Audio Layer */}
+                              <button
+                                onClick={() => onAddClipToTimeline(asset, 'new_audio_layer')}
+                                title="Add audio to a brand new Audio Track (A...)"
+                                style={{
+                                  padding: '2px 5px',
+                                  borderRadius: 2,
+                                  background: '#22222c',
+                                  border: '1px solid #47475a',
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  color: '#e2e8f0',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 2,
+                                }}
+                              >
+                                <Plus size={9} color="#34d399" />
+                                <span>Layer</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

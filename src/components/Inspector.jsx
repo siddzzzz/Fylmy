@@ -10,13 +10,18 @@ import {
   Key,
   Trash2,
   Target,
+  Layers,
+  Plus,
 } from 'lucide-react';
 import { formatSecondsOnly } from '../types/defaults';
 
 export function Inspector({
   selectedClip,
+  tracks = [],
   onUpdateClip,
   onDeleteClip,
+  onMoveClipToTrack,
+  onAddTrack,
   currentTime,
   onSeek,
   onAddKeyframeAtPlayhead,
@@ -142,6 +147,80 @@ export function Inspector({
       </div>
 
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Track / Layer Assignment Routing */}
+        {(isVideo || isAudio) && (
+          <div style={{
+            background: '#16161b',
+            border: '1px solid #282834',
+            borderRadius: 4,
+            padding: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Track / Layer Assignment
+              </div>
+              <span style={{
+                fontSize: 9,
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                color: '#e2e8f0',
+                background: isVideo ? '#1e3a8a' : '#065f46',
+                border: '1px solid #383848',
+                padding: '1px 5px',
+                borderRadius: 2,
+              }}>
+                {selectedClip.trackId?.replace('track-', '').toUpperCase()}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {(isVideo ? tracks.filter((t) => t.type === 'video') : tracks.filter((t) => t.type === 'audio')).map((t) => {
+                const isCurrent = t.id === selectedClip.trackId;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onMoveClipToTrack && onMoveClipToTrack(selectedClip.id, t.id, selectedClip.start)}
+                    style={{
+                      flex: '1 0 calc(33% - 4px)',
+                      padding: '5px 4px',
+                      borderRadius: 3,
+                      fontSize: 10,
+                      fontWeight: isCurrent ? 700 : 500,
+                      background: isCurrent ? (isVideo ? '#2563eb' : '#059669') : '#202028',
+                      color: isCurrent ? '#ffffff' : '#94a3b8',
+                      border: isCurrent ? '1px solid #60a5fa' : '1px solid #30303c',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {t.code || t.name.split(' ')[0]}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => onMoveClipToTrack && onMoveClipToTrack(selectedClip.id, isVideo ? 'new_video_layer' : 'new_audio_layer', selectedClip.start)}
+                style={{
+                  flex: '1 0 calc(33% - 4px)',
+                  padding: '5px 4px',
+                  borderRadius: 3,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  background: '#1a1a24',
+                  color: isVideo ? '#93c5fd' : '#6ee7b7',
+                  border: '1px solid #3b4260',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
+                }}
+              >
+                <Plus size={10} />
+                <span>+ Layer</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* VIDEO CONTROLS */}
         {isVideo && (
           <>
