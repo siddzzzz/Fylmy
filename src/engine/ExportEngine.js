@@ -237,6 +237,9 @@ async function renderWithWebCodecsMP4({
   if (onProgress) onProgress(100);
 
   const buffer = muxer.target.buffer;
+  const blob = new Blob([buffer], { type: 'video/mp4' });
+  const downloadUrl = URL.createObjectURL(blob);
+
   // Clean, human-readable filename based on project name (strictly one dot for extension)
   const cleanName = (projectName || 'Untitled_Sequence')
     .trim()

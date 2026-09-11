@@ -98,13 +98,15 @@ export class Compositor {
     const orderedTracks = [...videoTracks].reverse();
 
     // 2. Render Video/Image layers
-    for (const track of orderedTracks) {
+    for (let i = 0; i < orderedTracks.length; i++) {
+      const track = orderedTracks[i];
+      const isBaseTrack = (i === 0);
       for (const clip of track.clips) {
         if (currentTime >= clip.start && currentTime < clip.start + clip.duration) {
-          const mediaEl = mediaElements.get(clip.assetId);
+          const mediaEl = mediaElements.get(clip.id) || mediaElements.get(clip.assetId);
           if (!mediaEl) continue;
 
-          this.renderClipMedia(ctx, clip, mediaEl, width, height);
+          this.renderClipMedia(ctx, clip, mediaEl, width, height, isBaseTrack);
         }
       }
     }
@@ -135,7 +137,7 @@ export class Compositor {
   /**
    * Render individual video/image clip with transform, fit mode, and filters
    */
-  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight) {
+  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight, isBaseTrack = false) {
     const isVideo = mediaEl instanceof HTMLVideoElement;
     const isImg = mediaEl instanceof HTMLImageElement;
     if (!isVideo && !isImg) return;
@@ -151,7 +153,7 @@ export class Compositor {
       rotation: 0,
       opacity: 1,
       fitMode: 'contain',
-      mirrorBlurBg: true,
+      mirrorBlurBg: isBaseTrack,
     };
 
     const filters = clip.filters || {
@@ -183,11 +185,10 @@ export class Compositor {
     const mediaAspect = naturalWidth / naturalHeight;
     const canvasAspect = canvasWidth / canvasHeight;
 
-    // Optional Frosted Mirror Background if aspect ratio doesn't match and mirrorBlurBg is enabled
-    if (transform.mirrorBlurBg && Math.abs(mediaAspect - canvasAspect) > 0.05 && transform.fitMode === 'contain') {
+    // Only apply Frosted Mirror Background on base track
+    if (isBaseTrack && transform.mirrorBlurBg && Math.abs(mediaAspect - canvasAspect) > 0.05 && transform.fitMode === 'contain') {
       ctx.save();
       ctx.filter = 'blur(30px) brightness(60%)';
-      // Draw zoomed cover background
       let bgW = canvasWidth;
       let bgH = canvasWidth / mediaAspect;
       if (bgH < canvasHeight) {
