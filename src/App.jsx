@@ -256,6 +256,147 @@ export default function App() {
 
   // --- Track / Clip Mutations ---
 
+  // Move clip between tracks (cross-track dragging or layer re-assignment)
+  const handleMoveClipToTrack = useCallback((clipId, targetTrackId, newStart = null) => {
+    setTracks((prevTracks) => {
+      let movedClip = null;
+      let clipTrackType = 'video';
+
+      for (const t of prevTracks) {
+        const found = t.clips.find((c) => c.id === clipId);
+        if (found) {
+          clipTrackType = t.type;
+          movedClip = { ...found };
+          if (newStart !== null) {
+            movedClip.start = Math.max(0, Math.round(newStart * 100) / 100);
+          }
+          break;
+        }
+      }
+      if (!movedClip) return prevTracks;
+
+      let actualTargetTrackId = targetTrackId;
+      let newTrackToInsert = null;
+
+      if (targetTrackId === 'new_layer' || targetTrackId === 'new_video_layer' || targetTrackId === 'new_audio_layer') {
+        if (clipTrackType === 'audio' || targetTrackId === 'new_audio_layer') {
+          const audioTrackCount = prevTracks.filter((t) => t.type === 'audio').length + 1;
+          actualTargetTrackId = 'track-a' + audioTrackCount;
+          newTrackToInsert = {
+            id: actualTargetTrackId,
+            name: `A${audioTrackCount} (Audio)`,
+            code: `A${audioTrackCount}`,
+            type: 'audio',
+            height: 40,
+            muted: false,
+            locked: false,
+            volume: 1,
+            color: '#065f46',
+            accent: '#10b981',
+            clips: [],
+          };
+        } else {
+          const videoTrackCount = prevTracks.filter((t) => t.type === 'video').length + 1;
+          actualTargetTrackId = 'track-v' + videoTrackCount;
+          newTrackToInsert = {
+            id: actualTargetTrackId,
+            name: `V${videoTrackCount} (Overlay)`,
+            code: `V${videoTrackCount}`,
+            type: 'video',
+            height: 44,
+            muted: false,
+            locked: false,
+            volume: 1,
+            color: '#1e3a8a',
+            accent: '#3b82f6',
+            clips: [],
+          };
+        }
+      }
+
+      movedClip.trackId = actualTargetTrackId;
+      pushHistory(prevTracks);
+
+      let workingTracks = prevTracks.map((t) => ({
+        ...t,
+        clips: t.clips.filter((c) => c.id !== clipId),
+      }));
+
+      if (newTrackToInsert) {
+        if (newTrackToInsert.type === 'video') {
+          workingTracks = [newTrackToInsert, ...workingTracks];
+        } else {
+          workingTracks = [...workingTracks, newTrackToInsert];
+        }
+      }
+
+      return workingTracks.map((t) =>
+        t.id === actualTargetTrackId ? { ...t, clips: [...t.clips, movedClip] } : t
+      );
+    });
+  }, [pushHistory]);
+
+  // Add a new track (e.g. V3, V4, A3)
+  const handleAddTrack = useCallback((type = 'video') => {
+    setTracks((prevTracks) => {
+      pushHistory(prevTracks);
+      if (type === 'video') {
+        const videoTrackCount = prevTracks.filter((t) => t.type === 'video').length + 1;
+        const newTrack = {
+          id: 'track-v' + videoTrackCount,
+          name: `V${videoTrackCount} (Overlay)`,
+          code: `V${videoTrackCount}`,
+          type: 'video',
+          height: 44,
+          muted: false,
+          locked: false,
+          volume: 1,
+          color: '#1e3a8a',
+          accent: '#3b82f6',
+          clips: [],
+        };
+        // Add new video track at the top
+        return [newTrack, ...prevTracks];
+      } else {
+        const audioTrackCount = prevTracks.filter((t) => t.type === 'audio').length + 1;
+        const newTrack = {
+          id: 'track-a' + audioTrackCount,
+          name: `A${audioTrackCount} (Audio)`,
+          code: `A${audioTrackCount}`,
+          type: 'audio',
+          height: 40,
+          muted: false,
+          locked: false,
+          volume: 1,
+          color: '#065f46',
+          accent: '#10b981',
+          clips: [],
+        };
+        return [...prevTracks, newTrack];
+      }
+    });
+  }, [pushHistory]);
+
+  // Delete an unused or empty track
+  const handleDeleteTrack = useCallback((trackId) => {
+    setTracks((prevTracks) => {
+      const trackToDelete = prevTracks.find((t) => t.id === trackId);
+      if (!trackToDelete) return prevTracks;
+
+      // Keep at least 1 video track and 1 audio track
+      const sameTypeCount = prevTracks.filter((t) => t.type === trackToDelete.type).length;
+      if (sameTypeCount <= 1 && (trackToDelete.type === 'video' || trackToDelete.type === 'audio')) {
+        return prevTracks;
+      }
+      if (trackToDelete.type === 'blur' || trackToDelete.type === 'text') {
+        return prevTracks;
+      }
+
+      pushHistory(prevTracks);
+      return prevTracks.filter((t) => t.id !== trackId);
+    });
+  }, [pushHistory]);
+
   const handleUpdateClip = useCallback((clipId, updates) => {
     setTracks((prevTracks) => {
       const nextTracks = prevTracks.map((t) => ({
@@ -357,12 +498,10 @@ export default function App() {
             let updatedKeyframes;
 
             if (existingKf) {
-              // Update existing keyframe
               updatedKeyframes = c.keyframes.map((k) =>
                 k.id === existingKf.id ? { ...k, ...newProps } : k
               );
             } else {
-              // Add new keyframe at this time
               const newKf = {
                 id: 'kf-' + Math.random().toString(36).substring(2, 7),
                 time: Math.round(relativeTime * 100) / 100,
@@ -386,7 +525,6 @@ export default function App() {
     if (!selectedClip || selectedClip.trackType !== 'blur') return;
     const relTime = Math.max(0, Math.min(selectedClip.duration, currentTime - selectedClip.start));
 
-    // Get current interpolated values
     if (compositorRef.current) {
       const cur = compositorRef.current.getInterpolatedKeyframe(selectedClip.keyframes, relTime);
       handleUpdateBlurKeyframe(selectedClip.id, relTime, {
@@ -422,54 +560,119 @@ export default function App() {
     setTracks((prev) => prev.map((t) => (t.id === trackId ? { ...t, locked: !t.locked } : t)));
   }, []);
 
-  // --- Add Items to Timeline ---
+  // --- Add Items to Timeline (Single / Atomic) ---
 
-  const handleAddClipToTimeline = useCallback((asset) => {
-    const targetTrackId = asset.type === 'audio' ? 'track-a1' : 'track-v1';
+  const handleAddClipToTimeline = useCallback((asset, specificTrackId = null) => {
+    setTracks((prevTracks) => {
+      let targetTrackId = specificTrackId;
+      let newTrackToInsert = null;
 
-    // Find end of latest clip on this track
-    let nextStart = 0;
-    const targetTrack = tracks.find((t) => t.id === targetTrackId);
-    if (targetTrack && targetTrack.clips.length > 0) {
-      const lastClip = targetTrack.clips.reduce((max, c) => (c.start + c.duration > max.start + max.duration ? c : max));
-      nextStart = lastClip.start + lastClip.duration;
-    }
+      if (targetTrackId === 'new_layer' || targetTrackId === 'new_video_layer' || targetTrackId === 'new_audio_layer') {
+        if (asset.type === 'audio' || targetTrackId === 'new_audio_layer') {
+          const audioTrackCount = prevTracks.filter((t) => t.type === 'audio').length + 1;
+          targetTrackId = 'track-a' + audioTrackCount;
+          newTrackToInsert = {
+            id: targetTrackId,
+            name: `A${audioTrackCount} (Audio)`,
+            code: `A${audioTrackCount}`,
+            type: 'audio',
+            height: 40,
+            muted: false,
+            locked: false,
+            volume: 1,
+            color: '#065f46',
+            accent: '#10b981',
+            clips: [],
+          };
+        } else {
+          const videoTrackCount = prevTracks.filter((t) => t.type === 'video').length + 1;
+          targetTrackId = 'track-v' + videoTrackCount;
+          newTrackToInsert = {
+            id: targetTrackId,
+            name: `V${videoTrackCount} (Overlay)`,
+            code: `V${videoTrackCount}`,
+            type: 'video',
+            height: 44,
+            muted: false,
+            locked: false,
+            volume: 1,
+            color: '#1e3a8a',
+            accent: '#3b82f6',
+            clips: [],
+          };
+        }
+      } else if (!targetTrackId) {
+        if (asset.type === 'audio') {
+          targetTrackId = 'track-a1';
+        } else {
+          if (selectedClip && selectedClip.trackType === 'video') {
+            targetTrackId = selectedClip.trackId;
+          } else {
+            targetTrackId = 'track-v1';
+          }
+        }
+      }
 
-    const newClip = {
-      id: 'clip-' + Math.random().toString(36).substring(2, 9),
-      trackId: targetTrackId,
-      assetId: asset.id,
-      name: asset.name,
-      start: Math.round(nextStart * 100) / 100,
-      duration: Math.round((asset.duration || 6) * 100) / 100,
-      offset: 0,
-      assetDuration: asset.duration || 6,
-      speed: 1,
-      volume: 1,
-      transform: {
-        x: 0,
-        y: 0,
-        scale: 1,
-        rotation: 0,
-        opacity: 1,
-        fitMode: 'contain',
-        mirrorBlurBg: true,
-      },
-      filters: {
-        brightness: 100,
-        contrast: 100,
-        saturation: 100,
-        temperature: 0,
-        vignette: 0,
-      },
-    };
+      const nextStart = currentTime;
+      const isBaseTrack = targetTrackId === 'track-v1';
+      const newClip = {
+        id: 'clip-' + Math.random().toString(36).substring(2, 9),
+        trackId: targetTrackId,
+        assetId: asset.id,
+        name: asset.name,
+        start: Math.round(nextStart * 100) / 100,
+        duration: Math.round((asset.duration || 6) * 100) / 100,
+        offset: 0,
+        assetDuration: asset.duration || 6,
+        speed: 1,
+        volume: 1,
+        transform: {
+          x: isBaseTrack ? 0 : 35,
+          y: isBaseTrack ? 0 : -25,
+          scale: isBaseTrack ? 1 : 0.65,
+          rotation: 0,
+          opacity: 1,
+          fitMode: 'contain',
+          mirrorBlurBg: isBaseTrack,
+        },
+        filters: {
+          brightness: 100,
+          contrast: 100,
+          saturation: 100,
+          temperature: 0,
+          vignette: 0,
+        },
+      };
 
-    setTracks((prev) => {
-      pushHistory(prev);
-      return prev.map((t) => (t.id === targetTrackId ? { ...t, clips: [...t.clips, newClip] } : t));
+      pushHistory(prevTracks);
+
+      let workingTracks = [...prevTracks];
+      if (newTrackToInsert) {
+        if (newTrackToInsert.type === 'video') {
+          // Add new video track at the top
+          workingTracks = [newTrackToInsert, ...workingTracks];
+        } else {
+          workingTracks = [...workingTracks, newTrackToInsert];
+        }
+      }
+
+      // Check if target track exists
+      const trackExists = workingTracks.some((t) => t.id === targetTrackId);
+      if (!trackExists) {
+        const fallbackTrack = workingTracks.find((t) => t.type === (asset.type === 'audio' ? 'audio' : 'video'));
+        if (fallbackTrack) {
+          targetTrackId = fallbackTrack.id;
+          newClip.trackId = targetTrackId;
+        }
+      }
+
+      setTimeout(() => setSelectedClipId(newClip.id), 0);
+
+      return workingTracks.map((t) =>
+        t.id === targetTrackId ? { ...t, clips: [...t.clips, newClip] } : t
+      );
     });
-    setSelectedClipId(newClip.id);
-  }, [tracks, pushHistory]);
+  }, [selectedClip, currentTime, pushHistory]);
 
   const handleAddBlurToTimeline = useCallback((style = 'gaussian') => {
     const newBlurClip = {
@@ -740,6 +943,7 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <MediaBin
           mediaAssets={mediaAssets}
+          tracks={tracks}
           onImportFiles={handleImportFiles}
           onAddDemoClip={handleAddDemoClip}
           onAddDemoAudio={handleAddDemoAudio}
@@ -747,6 +951,7 @@ export default function App() {
           onAddBlurToTimeline={handleAddBlurToTimeline}
           onAddTextToTimeline={handleAddTextToTimeline}
           onApplyFilterPreset={handleApplyFilterPreset}
+          onAddTrack={handleAddTrack}
           selectedClip={selectedClip}
           isGeneratingDemo={isGeneratingDemo}
         />
@@ -769,8 +974,11 @@ export default function App() {
 
         <Inspector
           selectedClip={selectedClip}
+          tracks={tracks}
           onUpdateClip={handleUpdateClip}
           onDeleteClip={handleDeleteClip}
+          onMoveClipToTrack={handleMoveClipToTrack}
+          onAddTrack={handleAddTrack}
           currentTime={currentTime}
           onSeek={handleSeek}
           onAddKeyframeAtPlayhead={handleAddKeyframeAtPlayhead}
@@ -790,6 +998,9 @@ export default function App() {
         onDeleteClip={handleDeleteClip}
         onDuplicateClip={handleDuplicateClip}
         onUpdateClip={handleUpdateClip}
+        onMoveClipToTrack={handleMoveClipToTrack}
+        onAddTrack={handleAddTrack}
+        onDeleteTrack={handleDeleteTrack}
         onToggleMuteTrack={handleToggleMuteTrack}
         onToggleLockTrack={handleToggleLockTrack}
         pxPerSecond={pxPerSecond}
