@@ -32,6 +32,10 @@ export default function App() {
   const [pxPerSecond, setPxPerSecond] = useState(55);
   const [zoomLevel, setZoomLevel] = useState('fit');
 
+  // --- Duration Management (Auto-match clips vs User-defined Custom) ---
+  const [durationMode, setDurationMode] = useState('auto'); // 'auto' | 'custom'
+  const [customDuration, setCustomDuration] = useState(30);
+
   // --- Modals State ---
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
@@ -62,9 +66,9 @@ export default function App() {
     }
   }, []);
 
-  // Compute total timeline duration
-  const totalDuration = useMemo(() => {
-    let max = 15; // default minimum
+  // Compute total timeline duration based on actual video footage length or custom choice
+  const maxClipEndTime = useMemo(() => {
+    let max = 0;
     for (const t of tracks) {
       for (const c of t.clips) {
         if (c.start + c.duration > max) {
@@ -72,8 +76,16 @@ export default function App() {
         }
       }
     }
-    return Math.max(15, Math.ceil(max));
+    return Math.round(max * 100) / 100;
   }, [tracks]);
+
+  const totalDuration = useMemo(() => {
+    if (durationMode === 'custom') {
+      return Math.max(1, customDuration);
+    }
+    // Auto mode: exactly match the end of the longest footage, or 10s if timeline is empty
+    return maxClipEndTime > 0 ? maxClipEndTime : 10;
+  }, [maxClipEndTime, durationMode, customDuration]);
 
   // Selected clip helper
   const selectedClip = useMemo(() => {
@@ -855,6 +867,12 @@ export default function App() {
         setProjectName={setProjectName}
         aspectRatio={aspectRatio}
         setAspectRatio={setAspectRatio}
+        durationMode={durationMode}
+        setDurationMode={setDurationMode}
+        customDuration={customDuration}
+        setCustomDuration={setCustomDuration}
+        totalDuration={totalDuration}
+        maxClipEndTime={maxClipEndTime}
         onUndo={handleUndo}
         onRedo={handleRedo}
         canUndo={historyIndex > 0}
@@ -915,6 +933,11 @@ export default function App() {
         tracks={tracks}
         currentTime={currentTime}
         duration={totalDuration}
+        durationMode={durationMode}
+        setDurationMode={setDurationMode}
+        customDuration={customDuration}
+        setCustomDuration={setCustomDuration}
+        maxClipEndTime={maxClipEndTime}
         onSeek={handleSeek}
         selectedClipId={selectedClipId}
         onSelectClip={setSelectedClipId}

@@ -15,6 +15,7 @@ import {
   Key,
   Plus,
   Layers,
+  Clock,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -22,6 +23,11 @@ export function Timeline({
   tracks,
   currentTime,
   duration,
+  durationMode = 'auto',
+  setDurationMode,
+  customDuration = 30,
+  setCustomDuration,
+  maxClipEndTime = 0,
   onSeek,
   selectedClipId,
   onSelectClip,
@@ -45,6 +51,7 @@ export function Timeline({
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [dragInfo, setDragInfo] = useState(null); // { mode, clipId, sourceTrackId, targetTrackId, startX, startY, initStart, initDuration, initOffset, clipType }
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [durationPopoverOpen, setDurationPopoverOpen] = useState(false);
 
   // Collect all cut points for magnetic snapping
   const snapTargets = useMemo(() => {
@@ -380,30 +387,184 @@ export function Timeline({
           </button>
         </div>
 
-        {/* Right Tools: Timeline Zoom */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <button
-            onClick={() => setPxPerSecond(Math.max(15, pxPerSecond - 10))}
-            style={{ color: '#71717a', padding: 3 }}
-            title="Zoom Out"
-          >
-            <ZoomOut size={13} />
-          </button>
-          <input
-            type="range"
-            min="15"
-            max="150"
-            value={pxPerSecond}
-            onChange={(e) => setPxPerSecond(parseInt(e.target.value))}
-            style={{ width: 80 }}
-          />
-          <button
-            onClick={() => setPxPerSecond(Math.min(150, pxPerSecond + 10))}
-            style={{ color: '#71717a', padding: 3 }}
-            title="Zoom In"
-          >
-            <ZoomIn size={13} />
-          </button>
+        {/* Right Tools: Duration Mode & Timeline Zoom */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Sequence Duration Badge & Popover */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setDurationPopoverOpen(!durationPopoverOpen)}
+              style={{
+                background: '#191920',
+                border: '1px solid #2e2e3a',
+                borderRadius: 3,
+                padding: '3px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                color: '#e2e8f0',
+                cursor: 'pointer',
+              }}
+              title="Sequence Duration Settings (Auto-fit to video or Custom Length)"
+            >
+              <Clock size={11} color="#94a3b8" />
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{duration}s</span>
+              <span style={{
+                fontSize: 9,
+                fontWeight: 700,
+                padding: '1px 4px',
+                borderRadius: 2,
+                background: durationMode === 'auto' ? '#1e3a8a' : '#78350f',
+                color: durationMode === 'auto' ? '#93c5fd' : '#fcd34d',
+              }}>
+                {durationMode === 'auto' ? 'AUTO' : 'CUSTOM'}
+              </span>
+            </button>
+
+            {durationPopoverOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  right: 0,
+                  marginBottom: 6,
+                  background: '#16161b',
+                  border: '1px solid #32323e',
+                  borderRadius: 6,
+                  padding: 10,
+                  minWidth: 260,
+                  boxShadow: 'var(--shadow-lg)',
+                  zIndex: 100,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Sequence Duration Mode
+                </div>
+
+                {/* Mode Toggle Buttons */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={() => setDurationMode && setDurationMode('auto')}
+                    style={{
+                      flex: 1,
+                      padding: '5px 4px',
+                      borderRadius: 3,
+                      fontSize: 11,
+                      fontWeight: durationMode === 'auto' ? 700 : 500,
+                      background: durationMode === 'auto' ? '#1d4ed8' : '#202028',
+                      color: durationMode === 'auto' ? '#ffffff' : '#94a3b8',
+                      border: durationMode === 'auto' ? '1px solid #3b82f6' : '1px solid #2e2e38',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Auto (Fit Video)
+                  </button>
+                  <button
+                    onClick={() => setDurationMode && setDurationMode('custom')}
+                    style={{
+                      flex: 1,
+                      padding: '5px 4px',
+                      borderRadius: 3,
+                      fontSize: 11,
+                      fontWeight: durationMode === 'custom' ? 700 : 500,
+                      background: durationMode === 'custom' ? '#d97706' : '#202028',
+                      color: durationMode === 'custom' ? '#ffffff' : '#94a3b8',
+                      border: durationMode === 'custom' ? '1px solid #f59e0b' : '1px solid #2e2e38',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Custom Length
+                  </button>
+                </div>
+
+                {durationMode === 'auto' ? (
+                  <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4, padding: '2px 0' }}>
+                    Length automatically matches video: <span style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{maxClipEndTime > 0 ? `${maxClipEndTime}s` : '10s (Empty)'}</span>.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="number"
+                        min="1"
+                        max="3600"
+                        step="0.5"
+                        value={customDuration}
+                        onChange={(e) => setCustomDuration && setCustomDuration(Math.max(1, parseFloat(e.target.value) || 1))}
+                        style={{
+                          flex: 1,
+                          background: '#101014',
+                          border: '1px solid #383848',
+                          color: '#f8fafc',
+                          padding: '4px 8px',
+                          borderRadius: 3,
+                          fontSize: 12,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          outline: 'none',
+                        }}
+                      />
+                      <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>seconds</span>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {[5, 10, 15, 30, 60].map((sec) => (
+                        <button
+                          key={sec}
+                          onClick={() => setCustomDuration && setCustomDuration(sec)}
+                          style={{
+                            flex: 1,
+                            padding: '3px 0',
+                            borderRadius: 2,
+                            background: customDuration === sec ? '#2c2c38' : '#191920',
+                            border: customDuration === sec ? '1px solid #4a4a5e' : '1px solid #282832',
+                            color: customDuration === sec ? '#f8fafc' : '#71717a',
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {sec}s
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ width: 1, height: 16, background: '#25252e' }} />
+
+          {/* Timeline Zoom */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <button
+              onClick={() => setPxPerSecond(Math.max(15, pxPerSecond - 10))}
+              style={{ color: '#71717a', padding: 3 }}
+              title="Zoom Out"
+            >
+              <ZoomOut size={13} />
+            </button>
+            <input
+              type="range"
+              min="15"
+              max="150"
+              value={pxPerSecond}
+              onChange={(e) => setPxPerSecond(parseInt(e.target.value))}
+              style={{ width: 80 }}
+            />
+            <button
+              onClick={() => setPxPerSecond(Math.min(150, pxPerSecond + 10))}
+              style={{ color: '#71717a', padding: 3 }}
+              title="Zoom In"
+            >
+              <ZoomIn size={13} />
+            </button>
+          </div>
         </div>
       </div>
 

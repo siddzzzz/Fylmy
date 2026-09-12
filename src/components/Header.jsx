@@ -10,6 +10,7 @@ import {
   RotateCw,
   HelpCircle,
   SlidersHorizontal,
+  Clock,
 } from 'lucide-react';
 import { ASPECT_RATIOS } from '../types/defaults';
 
@@ -18,6 +19,12 @@ export function Header({
   setProjectName,
   aspectRatio,
   setAspectRatio,
+  durationMode = 'auto',
+  setDurationMode,
+  customDuration = 30,
+  setCustomDuration,
+  totalDuration = 10,
+  maxClipEndTime = 0,
   onUndo,
   onRedo,
   canUndo,
@@ -26,6 +33,7 @@ export function Header({
   onOpenShortcuts,
 }) {
   const [aspectDropdownOpen, setAspectDropdownOpen] = useState(false);
+  const [durationDropdownOpen, setDurationDropdownOpen] = useState(false);
   const currentAspect = ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['16:9'];
 
   const getAspectIcon = (ratioKey) => {
@@ -128,83 +136,237 @@ export function Header({
         </div>
       </div>
 
-      {/* Center: Workstation Aspect Ratio Selector */}
-      <div style={{ position: 'relative' }}>
-        <button
-          onClick={() => setAspectDropdownOpen(!aspectDropdownOpen)}
-          style={{
-            background: '#1a1a20',
-            border: '1px solid #2c2c36',
-            padding: '5px 11px',
-            borderRadius: 4,
-            color: 'var(--text-primary)',
-            fontSize: 12,
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-          }}
-        >
-          {getAspectIcon(aspectRatio)}
-          <span>{currentAspect.name}</span>
-          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
-        </button>
-
-        {aspectDropdownOpen && (
-          <div
+      {/* Center Group: Aspect Ratio & Duration Settings */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Aspect Ratio Selector */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => {
+              setAspectDropdownOpen(!aspectDropdownOpen);
+              setDurationDropdownOpen(false);
+            }}
             style={{
-              position: 'absolute',
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              marginTop: 5,
-              background: '#16161b',
-              border: '1px solid #32323e',
-              borderRadius: 6,
-              padding: 4,
-              minWidth: 260,
-              boxShadow: 'var(--shadow-lg)',
-              zIndex: 100,
+              background: '#1a1a20',
+              border: '1px solid #2c2c36',
+              padding: '5px 11px',
+              borderRadius: 4,
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
             }}
           >
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', padding: '6px 8px', textTransform: 'uppercase', letterSpacing: 0.8 }}>
-              Canvas Format Presets
+            {getAspectIcon(aspectRatio)}
+            <span>{currentAspect.name}</span>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
+          </button>
+
+          {aspectDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: 5,
+                background: '#16161b',
+                border: '1px solid #32323e',
+                borderRadius: 6,
+                padding: 4,
+                minWidth: 260,
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 100,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', padding: '6px 8px', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Canvas Format Presets
+              </div>
+              {Object.entries(ASPECT_RATIOS).map(([key, item]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setAspectRatio(key);
+                    setAspectDropdownOpen(false);
+                  }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    padding: '7px 8px',
+                    borderRadius: 4,
+                    textAlign: 'left',
+                    background: aspectRatio === key ? '#232734' : 'transparent',
+                    color: aspectRatio === key ? '#60a5fa' : 'var(--text-primary)',
+                    border: aspectRatio === key ? '1px solid #2e4374' : '1px solid transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (aspectRatio !== key) e.currentTarget.style.background = '#1f1f26';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (aspectRatio !== key) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {getAspectIcon(key)}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.label}</span>
+                  </div>
+                </button>
+              ))}
             </div>
-            {Object.entries(ASPECT_RATIOS).map(([key, item]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setAspectRatio(key);
-                  setAspectDropdownOpen(false);
-                }}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 9,
-                  padding: '7px 8px',
-                  borderRadius: 4,
-                  textAlign: 'left',
-                  background: aspectRatio === key ? '#232734' : 'transparent',
-                  color: aspectRatio === key ? '#60a5fa' : 'var(--text-primary)',
-                  border: aspectRatio === key ? '1px solid #2e4374' : '1px solid transparent',
-                }}
-                onMouseEnter={(e) => {
-                  if (aspectRatio !== key) e.currentTarget.style.background = '#1f1f26';
-                }}
-                onMouseLeave={(e) => {
-                  if (aspectRatio !== key) e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                {getAspectIcon(key)}
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.label}</span>
+          )}
+        </div>
+
+        {/* Sequence Duration Selector (Auto Fit Footage vs Custom User-Defined) */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => {
+              setDurationDropdownOpen(!durationDropdownOpen);
+              setAspectDropdownOpen(false);
+            }}
+            style={{
+              background: '#1a1a20',
+              border: '1px solid #2c2c36',
+              padding: '5px 11px',
+              borderRadius: 4,
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            title="Sequence Duration Settings"
+          >
+            <Clock size={13} color="#94a3b8" />
+            <span style={{ fontFamily: 'var(--font-mono)' }}>
+              {totalDuration}s
+            </span>
+            <span style={{ fontSize: 9, color: durationMode === 'auto' ? '#38bdf8' : '#f59e0b', fontWeight: 700 }}>
+              [{durationMode === 'auto' ? 'AUTO' : 'CUSTOM'}]
+            </span>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
+          </button>
+
+          {durationDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                marginTop: 5,
+                background: '#16161b',
+                border: '1px solid #32323e',
+                borderRadius: 6,
+                padding: 10,
+                minWidth: 270,
+                boxShadow: 'var(--shadow-lg)',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Sequence Duration Mode
+              </div>
+
+              {/* Mode Toggle Buttons */}
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onClick={() => setDurationMode && setDurationMode('auto')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 4px',
+                    borderRadius: 3,
+                    fontSize: 11,
+                    fontWeight: durationMode === 'auto' ? 700 : 500,
+                    background: durationMode === 'auto' ? '#1d4ed8' : '#202028',
+                    color: durationMode === 'auto' ? '#ffffff' : '#94a3b8',
+                    border: durationMode === 'auto' ? '1px solid #3b82f6' : '1px solid #2e2e38',
+                    textAlign: 'center',
+                  }}
+                >
+                  Auto (Fit Video)
+                </button>
+                <button
+                  onClick={() => setDurationMode && setDurationMode('custom')}
+                  style={{
+                    flex: 1,
+                    padding: '6px 4px',
+                    borderRadius: 3,
+                    fontSize: 11,
+                    fontWeight: durationMode === 'custom' ? 700 : 500,
+                    background: durationMode === 'custom' ? '#d97706' : '#202028',
+                    color: durationMode === 'custom' ? '#ffffff' : '#94a3b8',
+                    border: durationMode === 'custom' ? '1px solid #f59e0b' : '1px solid #2e2e38',
+                    textAlign: 'center',
+                  }}
+                >
+                  Custom Length
+                </button>
+              </div>
+
+              {durationMode === 'auto' ? (
+                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4, padding: '4px 2px' }}>
+                  Sequence length automatically matches your footage: <span style={{ color: '#38bdf8', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{maxClipEndTime > 0 ? `${maxClipEndTime}s` : '10s (Empty)'}</span>.
                 </div>
-              </button>
-            ))}
-          </div>
-        )}
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="number"
+                      min="1"
+                      max="3600"
+                      step="0.5"
+                      value={customDuration}
+                      onChange={(e) => setCustomDuration && setCustomDuration(Math.max(1, parseFloat(e.target.value) || 1))}
+                      style={{
+                        flex: 1,
+                        background: '#101014',
+                        border: '1px solid #383848',
+                        color: '#f8fafc',
+                        padding: '5px 8px',
+                        borderRadius: 3,
+                        fontSize: 12,
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>seconds</span>
+                  </div>
+
+                  {/* Quick Presets */}
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {[5, 10, 15, 30, 60].map((sec) => (
+                      <button
+                        key={sec}
+                        onClick={() => setCustomDuration && setCustomDuration(sec)}
+                        style={{
+                          flex: 1,
+                          padding: '3px 0',
+                          borderRadius: 2,
+                          background: customDuration === sec ? '#2c2c38' : '#191920',
+                          border: customDuration === sec ? '1px solid #4a4a5e' : '1px solid #282832',
+                          color: customDuration === sec ? '#f8fafc' : '#71717a',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {sec}s
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Right: Technical Actions & Solid Workstation Deliver Button */}
