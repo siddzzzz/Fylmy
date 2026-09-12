@@ -106,7 +106,7 @@ export class Compositor {
           const mediaEl = mediaElements.get(clip.id) || mediaElements.get(clip.assetId);
           if (!mediaEl) continue;
 
-          this.renderClipMedia(ctx, clip, mediaEl, width, height, isBaseTrack, previewMode);
+          this.renderClipMedia(ctx, clip, mediaEl, width, height, isBaseTrack, previewMode, currentTime);
         }
       }
     }
@@ -128,7 +128,7 @@ export class Compositor {
     for (const track of textTracks) {
       for (const clip of track.clips) {
         if (currentTime >= clip.start && currentTime < clip.start + clip.duration) {
-          this.renderTextClip(ctx, clip, width, height);
+          this.renderTextClip(ctx, clip, width, height, currentTime);
         }
       }
     }
@@ -137,7 +137,7 @@ export class Compositor {
   /**
    * Render individual video/image clip with transform, fit mode, and filters
    */
-  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight, isBaseTrack = false, previewMode = true) {
+  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight, isBaseTrack = false, previewMode = true, currentTime = 0) {
     const isVideo = mediaEl instanceof HTMLVideoElement;
     const isImg = mediaEl instanceof HTMLImageElement;
     if (!isVideo && !isImg) return;
@@ -170,8 +170,23 @@ export class Compositor {
       (!filters.saturation || filters.saturation === 100) &&
       (!filters.temperature || filters.temperature === 0);
 
+    // Calculate dynamic 1-click Fade In / Fade Out transition curve
+    let fadeMultiplier = 1;
+    if (clip.fadeIn && clip.fadeIn > 0) {
+      const elapsed = currentTime - clip.start;
+      if (elapsed < clip.fadeIn) {
+        fadeMultiplier *= Math.max(0, Math.min(1, elapsed / clip.fadeIn));
+      }
+    }
+    if (clip.fadeOut && clip.fadeOut > 0) {
+      const remaining = (clip.start + clip.duration) - currentTime;
+      if (remaining < clip.fadeOut) {
+        fadeMultiplier *= Math.max(0, Math.min(1, remaining / clip.fadeOut));
+      }
+    }
+
     ctx.save();
-    ctx.globalAlpha = transform.opacity ?? 1;
+    ctx.globalAlpha = (transform.opacity ?? 1) * fadeMultiplier;
 
     if (isDefaultFilters) {
       ctx.filter = 'none';
@@ -338,7 +353,7 @@ export class Compositor {
   /**
    * Render Styled Text Overlay
    */
-  renderTextClip(ctx, clip, canvasWidth, canvasHeight) {
+  renderTextClip(ctx, clip, canvasWidth, canvasHeight, currentTime = 0) {
     const config = clip.textConfig || {
       text: 'Title Text',
       fontSize: 48,
@@ -349,7 +364,22 @@ export class Compositor {
       yPos: 80, // percentage from top
     };
 
+    let fadeMultiplier = 1;
+    if (clip.fadeIn && clip.fadeIn > 0) {
+      const elapsed = currentTime - clip.start;
+      if (elapsed < clip.fadeIn) {
+        fadeMultiplier *= Math.max(0, Math.min(1, elapsed / clip.fadeIn));
+      }
+    }
+    if (clip.fadeOut && clip.fadeOut > 0) {
+      const remaining = (clip.start + clip.duration) - currentTime;
+      if (remaining < clip.fadeOut) {
+        fadeMultiplier *= Math.max(0, Math.min(1, remaining / clip.fadeOut));
+      }
+    }
+
     ctx.save();
+    ctx.globalAlpha = fadeMultiplier;
     const fontSize = Math.round((config.fontSize / 1080) * canvasHeight);
     ctx.font = `700 ${fontSize}px ${config.fontFamily || 'Outfit, sans-serif'}`;
     ctx.textAlign = config.align || 'center';

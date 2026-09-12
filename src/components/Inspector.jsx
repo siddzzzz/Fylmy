@@ -336,30 +336,36 @@ export function Inspector({
               </div>
             </div>
 
-            {/* Section: Playback Speed & Audio */}
+            {/* Section: Playback Speed & Audio Gain */}
             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
-                Speed & Gain
+                Speed & Playback
               </div>
 
-              {/* Speed Buttons */}
-              <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
-                {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((s) => (
+              {/* Casual Speed Preset Buttons */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3, marginBottom: 8 }}>
+                {[
+                  { s: 0.5, label: '0.5x' },
+                  { s: 1.0, label: '1.0x' },
+                  { s: 1.5, label: '1.5x' },
+                  { s: 2.0, label: '2.0x' },
+                  { s: 4.0, label: '4.0x' },
+                ].map(({ s, label }) => (
                   <button
                     key={s}
                     onClick={() => onUpdateClip(selectedClip.id, { speed: s })}
                     style={{
-                      flex: 1,
-                      padding: '4px 2px',
+                      padding: '5px 2px',
                       borderRadius: 3,
                       fontSize: 10,
                       fontWeight: (selectedClip.speed || 1) === s ? 700 : 500,
-                      background: (selectedClip.speed || 1) === s ? '#242430' : '#17171d',
+                      background: (selectedClip.speed || 1) === s ? '#1e3a8a' : '#17171d',
                       border: (selectedClip.speed || 1) === s ? '1px solid #3b82f6' : '1px solid #282832',
-                      color: (selectedClip.speed || 1) === s ? '#60a5fa' : '#94a3b8',
+                      color: (selectedClip.speed || 1) === s ? '#ffffff' : '#94a3b8',
+                      textAlign: 'center',
                     }}
                   >
-                    {s}x
+                    {label}
                   </button>
                 ))}
               </div>
@@ -379,6 +385,71 @@ export function Inspector({
                   onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
                   style={{ width: '100%' }}
                 />
+              </div>
+            </div>
+
+            {/* Section: 1-Click Transitions & Fades */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
+                1-Click Transitions & Fades
+              </div>
+
+              {/* Fade In */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+                  <span>Fade In</span>
+                  <span className="val-badge">{selectedClip.fadeIn ? `${selectedClip.fadeIn}s` : 'None'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[0, 0.5, 1.0, 2.0].map((dur) => (
+                    <button
+                      key={dur}
+                      onClick={() => onUpdateClip(selectedClip.id, { fadeIn: dur })}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        borderRadius: 3,
+                        fontSize: 10,
+                        fontWeight: (selectedClip.fadeIn || 0) === dur ? 700 : 500,
+                        background: (selectedClip.fadeIn || 0) === dur ? '#1e3a8a' : '#17171d',
+                        border: (selectedClip.fadeIn || 0) === dur ? '1px solid #3b82f6' : '1px solid #282832',
+                        color: (selectedClip.fadeIn || 0) === dur ? '#ffffff' : '#94a3b8',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {dur === 0 ? 'Off' : `${dur}s`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fade Out */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+                  <span>Fade Out</span>
+                  <span className="val-badge">{selectedClip.fadeOut ? `${selectedClip.fadeOut}s` : 'None'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[0, 0.5, 1.0, 2.0].map((dur) => (
+                    <button
+                      key={dur}
+                      onClick={() => onUpdateClip(selectedClip.id, { fadeOut: dur })}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        borderRadius: 3,
+                        fontSize: 10,
+                        fontWeight: (selectedClip.fadeOut || 0) === dur ? 700 : 500,
+                        background: (selectedClip.fadeOut || 0) === dur ? '#1e3a8a' : '#17171d',
+                        border: (selectedClip.fadeOut || 0) === dur ? '1px solid #3b82f6' : '1px solid #282832',
+                        color: (selectedClip.fadeOut || 0) === dur ? '#ffffff' : '#94a3b8',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {dur === 0 ? 'Off' : `${dur}s`}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -681,25 +752,92 @@ export function Inspector({
 
         {/* AUDIO CONTROLS */}
         {isAudio && (
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
-              Audio Bus Level
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
+                Audio Bus Level
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
+                  <span>Gain</span>
+                  <span className="val-badge">{Math.round((selectedClip.volume ?? 1) * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1.5"
+                  step="0.05"
+                  value={selectedClip.volume ?? 1}
+                  onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
+                  style={{ width: '100%' }}
+                />
+              </div>
             </div>
 
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
-                <span>Gain</span>
-                <span className="val-badge">{Math.round((selectedClip.volume ?? 1) * 100)}%</span>
+            {/* Audio Transitions & Fades */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
+                1-Click Audio Fades
               </div>
-              <input
-                type="range"
-                min="0"
-                max="1.5"
-                step="0.05"
-                value={selectedClip.volume ?? 1}
-                onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
-                style={{ width: '100%' }}
-              />
+
+              {/* Fade In */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+                  <span>Audio Fade In</span>
+                  <span className="val-badge">{selectedClip.fadeIn ? `${selectedClip.fadeIn}s` : 'None'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[0, 0.5, 1.0, 2.0].map((dur) => (
+                    <button
+                      key={dur}
+                      onClick={() => onUpdateClip(selectedClip.id, { fadeIn: dur })}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        borderRadius: 3,
+                        fontSize: 10,
+                        fontWeight: (selectedClip.fadeIn || 0) === dur ? 700 : 500,
+                        background: (selectedClip.fadeIn || 0) === dur ? '#065f46' : '#17171d',
+                        border: (selectedClip.fadeIn || 0) === dur ? '1px solid #10b981' : '1px solid #282832',
+                        color: (selectedClip.fadeIn || 0) === dur ? '#ffffff' : '#94a3b8',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {dur === 0 ? 'Off' : `${dur}s`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fade Out */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+                  <span>Audio Fade Out</span>
+                  <span className="val-badge">{selectedClip.fadeOut ? `${selectedClip.fadeOut}s` : 'None'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[0, 0.5, 1.0, 2.0].map((dur) => (
+                    <button
+                      key={dur}
+                      onClick={() => onUpdateClip(selectedClip.id, { fadeOut: dur })}
+                      style={{
+                        flex: 1,
+                        padding: '4px 0',
+                        borderRadius: 3,
+                        fontSize: 10,
+                        fontWeight: (selectedClip.fadeOut || 0) === dur ? 700 : 500,
+                        background: (selectedClip.fadeOut || 0) === dur ? '#065f46' : '#17171d',
+                        border: (selectedClip.fadeOut || 0) === dur ? '1px solid #10b981' : '1px solid #282832',
+                        color: (selectedClip.fadeOut || 0) === dur ? '#ffffff' : '#94a3b8',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {dur === 0 ? 'Off' : `${dur}s`}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
