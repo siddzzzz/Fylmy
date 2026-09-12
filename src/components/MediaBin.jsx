@@ -29,6 +29,8 @@ export function MediaBin({
   isGeneratingDemo,
 }) {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'blur' | 'text' | 'filters'
+  const [hoveredScrubAssetId, setHoveredScrubAssetId] = useState(null);
+  const [hoverScrubPct, setHoverScrubPct] = useState(0);
 
   const videoTracks = tracks.filter((t) => t.type === 'video');
   const audioTracks = tracks.filter((t) => t.type === 'audio');
@@ -223,15 +225,28 @@ export function MediaBin({
                         e.currentTarget.style.borderColor = '#282832';
                       }}
                     >
-                      {/* Thumbnail */}
-                      <div style={{
-                        height: 70,
-                        background: '#0d0d10',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
+                      {/* Thumbnail with Hover Scrubbing */}
+                      <div
+                        onMouseMove={(e) => {
+                          if (asset.type !== 'video') return;
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                          setHoveredScrubAssetId(asset.id);
+                          setHoverScrubPct(pct);
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredScrubAssetId(null);
+                        }}
+                        style={{
+                          height: 70,
+                          background: '#0d0d10',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'ew-resize',
+                        }}
+                      >
                         {asset.thumbnailUrl ? (
                           <img
                             src={asset.thumbnailUrl}
@@ -244,19 +259,37 @@ export function MediaBin({
                           <Video size={20} color="#3b82f6" />
                         )}
 
+                        {/* Hover Scrub Line Indicator */}
+                        {hoveredScrubAssetId === asset.id && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              bottom: 0,
+                              left: `${hoverScrubPct * 100}%`,
+                              width: 2,
+                              background: '#fbbf24',
+                              boxShadow: '0 0 6px #f59e0b',
+                              zIndex: 10,
+                            }}
+                          />
+                        )}
+
                         <div style={{
                           position: 'absolute',
                           bottom: 3,
                           right: 3,
-                          background: 'rgba(0,0,0,0.8)',
+                          background: 'rgba(0,0,0,0.85)',
                           padding: '1px 4px',
                           borderRadius: 2,
                           fontSize: 9,
                           fontWeight: 600,
                           fontFamily: 'var(--font-mono)',
-                          color: '#e2e8f0',
+                          color: hoveredScrubAssetId === asset.id ? '#fbbf24' : '#e2e8f0',
                         }}>
-                          {formatSecondsOnly(asset.duration)}
+                          {hoveredScrubAssetId === asset.id
+                            ? `${(hoverScrubPct * (asset.duration || 0)).toFixed(1)}s`
+                            : formatSecondsOnly(asset.duration)}
                         </div>
                       </div>
 

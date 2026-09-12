@@ -138,86 +138,120 @@ export function Header({
 
       {/* Center Group: Aspect Ratio & Duration Settings */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Aspect Ratio Selector */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => {
-              setAspectDropdownOpen(!aspectDropdownOpen);
-              setDurationDropdownOpen(false);
-            }}
-            style={{
-              background: '#1a1a20',
-              border: '1px solid #2c2c36',
-              padding: '5px 11px',
-              borderRadius: 4,
-              color: 'var(--text-primary)',
-              fontSize: 12,
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 7,
-            }}
-          >
-            {getAspectIcon(aspectRatio)}
-            <span>{currentAspect.name}</span>
-            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
-          </button>
-
-          {aspectDropdownOpen && (
-            <div
+        {/* Aspect Ratio Selector with Quick Social Presets */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => {
+                setAspectDropdownOpen(!aspectDropdownOpen);
+                setDurationDropdownOpen(false);
+              }}
               style={{
-                position: 'absolute',
-                top: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                marginTop: 5,
-                background: '#16161b',
-                border: '1px solid #32323e',
-                borderRadius: 6,
-                padding: 4,
-                minWidth: 260,
-                boxShadow: 'var(--shadow-lg)',
-                zIndex: 100,
+                background: '#1a1a20',
+                border: '1px solid #2c2c36',
+                padding: '5px 11px',
+                borderRadius: 4,
+                color: 'var(--text-primary)',
+                fontSize: 12,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
               }}
             >
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', padding: '6px 8px', textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                Canvas Format Presets
+              {getAspectIcon(aspectRatio)}
+              <span>{currentAspect.name}</span>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>▼</span>
+            </button>
+
+            {aspectDropdownOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  marginTop: 5,
+                  background: '#16161b',
+                  border: '1px solid #32323e',
+                  borderRadius: 6,
+                  padding: 4,
+                  minWidth: 260,
+                  boxShadow: 'var(--shadow-lg)',
+                  zIndex: 100,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', padding: '6px 8px', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Canvas Format Presets
+                </div>
+                {Object.entries(ASPECT_RATIOS).map(([key, item]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setAspectRatio(key);
+                      setAspectDropdownOpen(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '7px 8px',
+                      borderRadius: 4,
+                      textAlign: 'left',
+                      background: aspectRatio === key ? '#232734' : 'transparent',
+                      color: aspectRatio === key ? '#60a5fa' : 'var(--text-primary)',
+                      border: aspectRatio === key ? '1px solid #2e4374' : '1px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (aspectRatio !== key) e.currentTarget.style.background = '#1f1f26';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (aspectRatio !== key) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    {getAspectIcon(key)}
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.label}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
-              {Object.entries(ASPECT_RATIOS).map(([key, item]) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setAspectRatio(key);
-                    setAspectDropdownOpen(false);
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 9,
-                    padding: '7px 8px',
-                    borderRadius: 4,
-                    textAlign: 'left',
-                    background: aspectRatio === key ? '#232734' : 'transparent',
-                    color: aspectRatio === key ? '#60a5fa' : 'var(--text-primary)',
-                    border: aspectRatio === key ? '1px solid #2e4374' : '1px solid transparent',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (aspectRatio !== key) e.currentTarget.style.background = '#1f1f26';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (aspectRatio !== key) e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  {getAspectIcon(key)}
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{item.name}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{item.label}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Quick 1-Click Social Format Buttons */}
+          <button
+            onClick={() => setAspectRatio('16:9')}
+            title="1-Click YouTube Widescreen (16:9)"
+            style={{
+              padding: '4px 7px',
+              borderRadius: 3,
+              fontSize: 11,
+              fontWeight: aspectRatio === '16:9' ? 700 : 500,
+              background: aspectRatio === '16:9' ? '#1e2d4a' : '#141418',
+              border: aspectRatio === '16:9' ? '1px solid #3b82f6' : '1px solid #24242e',
+              color: aspectRatio === '16:9' ? '#93c5fd' : '#71717a',
+            }}
+          >
+            16:9
+          </button>
+          <button
+            onClick={() => setAspectRatio('9:16')}
+            title="1-Click TikTok / Reels / Shorts (9:16)"
+            style={{
+              padding: '4px 7px',
+              borderRadius: 3,
+              fontSize: 11,
+              fontWeight: aspectRatio === '9:16' ? 700 : 500,
+              background: aspectRatio === '9:16' ? '#2e1c36' : '#141418',
+              border: aspectRatio === '9:16' ? '1px solid #c084fc' : '1px solid #24242e',
+              color: aspectRatio === '9:16' ? '#f0abfc' : '#71717a',
+            }}
+          >
+            9:16
+          </button>
         </div>
 
         {/* Sequence Duration Selector (Auto Fit Footage vs Custom User-Defined) */}
