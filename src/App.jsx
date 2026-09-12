@@ -150,52 +150,10 @@ export default function App() {
     });
   }, [mediaAssets]);
 
-  // Synchronize Media Elements (Play/Pause, Seeking, Volume) with current timeline
-  const syncMediaElements = useCallback((targetTime, playing) => {
-    for (const track of tracks) {
-      for (const clip of track.clips) {
-        const mediaEl = mediaElementsRef.current.get(clip.assetId);
-        if (!mediaEl) continue;
-
-        const isClipActive = targetTime >= clip.start && targetTime < clip.start + clip.duration;
-
-        if (isClipActive) {
-          const desiredMediaTime = (targetTime - clip.start) * (clip.speed || 1) + (clip.offset || 0);
-
-          // Audio Engine connection
-          if (audioEngineRef.current && (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) {
-            audioEngineRef.current.connectMediaElement(
-              mediaEl,
-              track.volume,
-              clip.volume,
-              track.muted
-            );
-          }
-
-          if (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement) {
-            mediaEl.playbackRate = clip.speed || 1;
-
-            if (Math.abs(mediaEl.currentTime - desiredMediaTime) > 0.08) {
-              mediaEl.currentTime = Math.max(0, desiredMediaTime);
-            }
-
-            if (playing && mediaEl.paused) {
-              mediaEl.play().catch(() => {});
-            } else if (!playing && !mediaEl.paused) {
-              mediaEl.pause();
-            }
-          }
-        } else {
-          // Pause media outside active range
-          if (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement) {
-            if (!mediaEl.paused) {
-              mediaEl.pause();
-            }
-          }
-        }
-      }
-    }
-  }, [tracks]);
+  const currentTimeRef = useRef(currentTime);
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
 
   // Master Render Canvas Frame
   const renderFrame = useCallback((t) => {
@@ -211,48 +169,170 @@ export default function App() {
     }
   }, [tracks, currentAspectConfig, selectedClipId]);
 
-  // Main animation frame tick loop
-  useEffect(() => {
-    const tick = (now) => {
-      if (isPlaying) {
-        if (!lastTimeRef.current) lastTimeRef.current = now;
-        const deltaSec = (now - lastTimeRef.current) / 1000;
-        lastTimeRef.current = now;
+  // Seek and sync all media elements to a specific timestamp
+  const seekAllMedia = useCallback((targetTime, playing) => {
+    for (const track of tracks) {
+      for (const clip of track.clips) {
+        const mediaEl = mediaElementsRef.current.get(clip.assetId);
+        if (!mediaEl) continue;
 
-        setCurrentTime((prev) => {
-          let next = prev + deltaSec;
-          if (next >= totalDuration) {
-            setIsPlaying(false);
-            next = 0;
+        const isClipActive = targetTime >= clip.start && targetTime < clip.start + clip.duration;
+
+        if (isClipActive) {
+          const desiredMediaTime = (targetTime - clip.start) * (clip.speed || 1) + (clip.offset || 0);
+
+          // Connect Web Audio
+          if (audioEngineRef.current && (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) {
+            audioEngineRef.current.connectMediaElement(
+              mediaEl,
+              track.volume,
+              clip.volume,
+              track.muted
+            );
           }
-          syncMediaElements(next, true);
-          renderFrame(next);
-          return next;
-        });
 
-        animFrameRef.current = requestAnimationFrame(tick);
-      } else {
-        lastTimeRef.current = null;
-        renderFrame(currentTime);
+          if (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement) {
+            mediaEl.playbackRate = clip.speed || 1;
+
+            // Only seek if difference is noticeable (> 40ms)
+            if (Math.abs(mediaEl.currentTime - desiredMediaTime) > 0.04) {
+              mediaEl.currentTime = Math.max(0, desiredMediaTime);
+            }
+
+            if (playing) {
+              if (mediaEl.paused) {
+                mediaEl.play().catch(() => {});
+              }
+            } else {
+              if (!mediaEl.paused) {
+                mediaEl.pause();
+              }
+            }
+          }
+        } else {
+          // Pause media outside active duration
+          if (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement) {
+            if (!mediaEl.paused) {
+              mediaEl.pause();
+            }
+          }
+        }
       }
+    }
+  }, [tracks]);
+
+  // High-performance smooth animation frame playback loop
+  useEffect(() => {
+    if (!isPlaying) {
+      lastTimeRef.current = null;
+      renderFrame(currentTimeRef.current);
+      return;
+    }
+
+    let animId = null;
+
+    const tick = (now) => {
+      if (!lastTimeRef.current) lastTimeRef.current = now;
+      const deltaSec = (now - lastTimeRef.current) / 1000;
+      lastTimeRef.current = now;
+
+      // Find primary active video or audio element to lock hardware decoding clock
+      let masterEl = null;
+      let masterClip = null;
+
+      for (const track of tracks) {
+        if (track.muted) continue;
+        for (const clip of track.clips) {
+          const el = mediaElementsRef.current.get(clip.assetId);
+          if (el instanceof HTMLVideoElement && !el.paused && el.readyState >= 2) {
+            const isInside = currentTimeRef.current >= clip.start && currentTimeRef.current < clip.start + clip.duration;
+            if (isInside) {
+              masterEl = el;
+              masterClip = clip;
+              break;
+            }
+          }
+        }
+        if (masterEl) break;
+      }
+
+      let nextTime = currentTimeRef.current;
+      if (masterEl && masterClip) {
+        // Direct sync with hardware decoded video time (100% smooth 60fps, zero jitter)
+        const calcTime = masterClip.start + (masterEl.currentTime - (masterClip.offset || 0)) / (masterClip.speed || 1);
+        if (!isNaN(calcTime) && calcTime >= 0) {
+          nextTime = calcTime;
+        } else {
+          nextTime = currentTimeRef.current + deltaSec;
+        }
+      } else {
+        nextTime = currentTimeRef.current + deltaSec;
+      }
+
+      // Check sequence boundaries
+      if (nextTime >= totalDuration) {
+        setIsPlaying(false);
+        currentTimeRef.current = 0;
+        seekAllMedia(0, false);
+        renderFrame(0);
+        setCurrentTime(0);
+        return;
+      }
+
+      // Manage clip transitions (starting new clips or stopping expired clips)
+      for (const track of tracks) {
+        for (const clip of track.clips) {
+          const mediaEl = mediaElementsRef.current.get(clip.assetId);
+          if (!mediaEl || !(mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) continue;
+
+          const isClipActive = nextTime >= clip.start && nextTime < clip.start + clip.duration;
+
+          if (isClipActive) {
+            const desiredMediaTime = (nextTime - clip.start) * (clip.speed || 1) + (clip.offset || 0);
+
+            if (mediaEl.paused) {
+              mediaEl.currentTime = Math.max(0, desiredMediaTime);
+              mediaEl.play().catch(() => {});
+            } else if (mediaEl !== masterEl) {
+              // Secondary stream (audio/overlay): only re-sync on significant drift (> 350ms)
+              if (Math.abs(mediaEl.currentTime - desiredMediaTime) > 0.35) {
+                mediaEl.currentTime = Math.max(0, desiredMediaTime);
+              }
+            }
+          } else {
+            if (!mediaEl.paused) {
+              mediaEl.pause();
+            }
+          }
+        }
+      }
+
+      currentTimeRef.current = nextTime;
+      renderFrame(nextTime);
+      setCurrentTime(nextTime);
+
+      animId = requestAnimationFrame(tick);
     };
 
-    animFrameRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animFrameRef.current);
-  }, [isPlaying, totalDuration, syncMediaElements, renderFrame, currentTime]);
+    animId = requestAnimationFrame(tick);
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isPlaying, totalDuration, tracks, renderFrame, seekAllMedia]);
 
   // Manual Seek
   const handleSeek = useCallback((time) => {
     const clamped = Math.max(0, Math.min(totalDuration, time));
+    currentTimeRef.current = clamped;
     setCurrentTime(clamped);
-    syncMediaElements(clamped, isPlaying);
+    seekAllMedia(clamped, isPlaying);
     renderFrame(clamped);
-  }, [totalDuration, isPlaying, syncMediaElements, renderFrame]);
+  }, [totalDuration, isPlaying, seekAllMedia, renderFrame]);
 
   // Frame Stepper
   const handleStepFrame = useCallback((direction) => {
-    handleSeek(currentTime + direction * (1 / 30));
-  }, [currentTime, handleSeek]);
+    handleSeek(currentTimeRef.current + direction * (1 / 30));
+  }, [handleSeek]);
 
   // Play / Pause Toggle
   const handleTogglePlay = useCallback(() => {
@@ -260,11 +340,11 @@ export default function App() {
       audioEngineRef.current.resume();
     }
     setIsPlaying((prev) => {
-      const next = !prev;
-      syncMediaElements(currentTime, next);
-      return next;
+      const nextPlaying = !prev;
+      seekAllMedia(currentTimeRef.current, nextPlaying);
+      return nextPlaying;
     });
-  }, [currentTime, syncMediaElements]);
+  }, [seekAllMedia]);
 
   // --- Track / Clip Mutations ---
 

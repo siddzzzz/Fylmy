@@ -106,7 +106,7 @@ export class Compositor {
           const mediaEl = mediaElements.get(clip.id) || mediaElements.get(clip.assetId);
           if (!mediaEl) continue;
 
-          this.renderClipMedia(ctx, clip, mediaEl, width, height, isBaseTrack);
+          this.renderClipMedia(ctx, clip, mediaEl, width, height, isBaseTrack, previewMode);
         }
       }
     }
@@ -137,7 +137,7 @@ export class Compositor {
   /**
    * Render individual video/image clip with transform, fit mode, and filters
    */
-  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight, isBaseTrack = false) {
+  renderClipMedia(ctx, clip, mediaEl, canvasWidth, canvasHeight, isBaseTrack = false, previewMode = true) {
     const isVideo = mediaEl instanceof HTMLVideoElement;
     const isImg = mediaEl instanceof HTMLImageElement;
     if (!isVideo && !isImg) return;
@@ -164,31 +164,40 @@ export class Compositor {
       vignette: 0,
     };
 
+    const isDefaultFilters =
+      (!filters.brightness || filters.brightness === 100) &&
+      (!filters.contrast || filters.contrast === 100) &&
+      (!filters.saturation || filters.saturation === 100) &&
+      (!filters.temperature || filters.temperature === 0);
+
     ctx.save();
     ctx.globalAlpha = transform.opacity ?? 1;
 
-    // Build CSS filter string
-    const filterParts = [
-      `brightness(${filters.brightness}%)`,
-      `contrast(${filters.contrast}%)`,
-      `saturate(${filters.saturation}%)`,
-    ];
-    if (filters.temperature !== 0) {
-      if (filters.temperature > 0) {
-        filterParts.push(`sepia(${filters.temperature * 0.4}%)`);
-      } else {
-        filterParts.push(`hue-rotate(${filters.temperature * 0.8}deg)`);
+    if (isDefaultFilters) {
+      ctx.filter = 'none';
+    } else {
+      // Build CSS filter string only when custom color grading is applied
+      const filterParts = [];
+      if (filters.brightness !== 100) filterParts.push(`brightness(${filters.brightness}%)`);
+      if (filters.contrast !== 100) filterParts.push(`contrast(${filters.contrast}%)`);
+      if (filters.saturation !== 100) filterParts.push(`saturate(${filters.saturation}%)`);
+      if (filters.temperature && filters.temperature !== 0) {
+        if (filters.temperature > 0) {
+          filterParts.push(`sepia(${filters.temperature * 0.4}%)`);
+        } else {
+          filterParts.push(`hue-rotate(${filters.temperature * 0.8}deg)`);
+        }
       }
+      ctx.filter = filterParts.length > 0 ? filterParts.join(' ') : 'none';
     }
-    ctx.filter = filterParts.join(' ');
 
     const mediaAspect = naturalWidth / naturalHeight;
     const canvasAspect = canvasWidth / canvasHeight;
 
-    // Only apply Frosted Mirror Background on base track
+    // Only apply Frosted Mirror Background on base track if aspect ratios differ
     if (isBaseTrack && transform.mirrorBlurBg && Math.abs(mediaAspect - canvasAspect) > 0.05 && transform.fitMode === 'contain') {
       ctx.save();
-      ctx.filter = 'blur(30px) brightness(60%)';
+      ctx.filter = previewMode ? 'blur(12px) brightness(50%)' : 'blur(24px) brightness(50%)';
       let bgW = canvasWidth;
       let bgH = canvasWidth / mediaAspect;
       if (bgH < canvasHeight) {
