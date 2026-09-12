@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Scissors,
   Trash2,
@@ -16,7 +16,7 @@ import {
   Plus,
   Layers,
 } from 'lucide-react';
-import { formatSecondsOnly } from '../types/defaults';
+import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
 export function Timeline({
   tracks,
@@ -37,7 +37,7 @@ export function Timeline({
   pxPerSecond = 55,
   setPxPerSecond,
 }) {
-  const timelineRef = useRef(null);
+  const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
   const headersScrollRef = useRef(null);
   const trackLaneRefs = useRef(new Map());
@@ -45,22 +45,49 @@ export function Timeline({
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [dragInfo, setDragInfo] = useState(null); // { mode, clipId, sourceTrackId, targetTrackId, startX, startY, initStart, initDuration, initOffset, clipType }
   const [snapEnabled, setSnapEnabled] = useState(true);
-  const [addTrackDropdown, setAddTrackDropdown] = useState(false);
 
-  // Time conversion helper
-  const clientXToTime = (clientX) => {
-    if (!lanesScrollRef.current) return 0;
-    const rect = lanesScrollRef.current.getBoundingClientRect();
-    const scrollLeft = lanesScrollRef.current.scrollLeft;
-    const x = clientX - rect.left + scrollLeft;
-    const time = Math.max(0, x / pxPerSecond);
-    return Math.min(duration, time);
-  };
+  // Collect all cut points for magnetic snapping
+  const snapTargets = useMemo(() => {
+    const points = [0, duration];
+    for (const t of tracks) {
+      for (const c of t.clips) {
+        points.push(c.start);
+        points.push(c.start + c.duration);
+      }
+    }
+    return Array.from(new Set(points.map((p) => Math.round(p * 100) / 100)));
+  }, [tracks, duration]);
 
-  // Synchronize vertical scroll between left headers and right lanes
+  // Time conversion helper from any mouse clientX
+  const clientXToTime = useCallback(
+    (clientX, applySnap = true) => {
+      if (!lanesScrollRef.current) return 0;
+      const rect = lanesScrollRef.current.getBoundingClientRect();
+      const scrollLeft = lanesScrollRef.current.scrollLeft;
+      const x = clientX - rect.left + scrollLeft;
+      let time = Math.max(0, Math.min(duration, x / pxPerSecond));
+
+      if (applySnap && snapEnabled) {
+        const snapThreshold = 8 / pxPerSecond;
+        for (const pt of snapTargets) {
+          if (Math.abs(time - pt) < snapThreshold) {
+            time = pt;
+            break;
+          }
+        }
+      }
+      return Math.round(time * 1000) / 1000;
+    },
+    [duration, pxPerSecond, snapEnabled, snapTargets]
+  );
+
+  // Synchronize vertical scroll between left headers and right lanes, and horizontal scroll with ruler
   const handleLanesScroll = (e) => {
     if (headersScrollRef.current) {
       headersScrollRef.current.scrollTop = e.target.scrollTop;
+    }
+    if (rulerScrollRef.current) {
+      rulerScrollRef.current.scrollLeft = e.target.scrollLeft;
     }
   };
 
@@ -70,10 +97,35 @@ export function Timeline({
     }
   };
 
-  // Ruler click & scrub
+  const handleRulerScroll = (e) => {
+    if (lanesScrollRef.current) {
+      lanesScrollRef.current.scrollLeft = e.target.scrollLeft;
+    }
+  };
+
+  // Start scrubbing from ruler
   const handleRulerMouseDown = (e) => {
+    if (e.button !== 0) return;
     setIsScrubbing(true);
-    const newTime = clientXToTime(e.clientX);
+    const newTime = clientXToTime(e.clientX, snapEnabled);
+    onSeek(newTime);
+  };
+
+  // Start scrubbing from playhead line or handle
+  const handlePlayheadMouseDown = (e) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setIsScrubbing(true);
+    const newTime = clientXToTime(e.clientX, snapEnabled);
+    onSeek(newTime);
+  };
+
+  // Start scrubbing when clicking on empty lanes area / background
+  const handleLanesMouseDown = (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.timeline-clip-item')) return;
+    setIsScrubbing(true);
+    const newTime = clientXToTime(e.clientX, snapEnabled);
     onSeek(newTime);
   };
 
@@ -81,7 +133,7 @@ export function Timeline({
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (isScrubbing) {
-        onSeek(clientXToTime(e.clientX));
+        onSeek(clientXToTime(e.clientX, snapEnabled));
       } else if (dragInfo) {
         const deltaX = e.clientX - dragInfo.startX;
         const deltaTime = deltaX / pxPerSecond;
@@ -91,8 +143,13 @@ export function Timeline({
 
           // Magnetic snap
           if (snapEnabled) {
-            if (Math.abs(newStart - currentTime) < 0.2) newStart = currentTime;
-            if (Math.abs(newStart - 0) < 0.2) newStart = 0;
+            const snapThreshold = 8 / pxPerSecond;
+            for (const pt of snapTargets) {
+              if (Math.abs(newStart - pt) < snapThreshold) {
+                newStart = pt;
+                break;
+              }
+            }
           }
 
           // Detect which track is under the cursor (cross-track dragging)
@@ -157,12 +214,18 @@ export function Timeline({
     if (isScrubbing || dragInfo) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+      if (isScrubbing) {
+        document.body.style.cursor = 'ew-resize';
+      }
     }
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
     };
-  }, [isScrubbing, dragInfo, pxPerSecond, duration, snapEnabled, currentTime, onSeek, onUpdateClip, onMoveClipToTrack, tracks]);
+  }, [isScrubbing, dragInfo, pxPerSecond, duration, snapEnabled, onSeek, onUpdateClip, onMoveClipToTrack, tracks, snapTargets, clientXToTime]);
 
   const timelineWidth = Math.max(1400, (duration + 8) * pxPerSecond);
 
@@ -346,11 +409,12 @@ export function Timeline({
 
       {/* 2. Sticky Header Top Bar: Spacer (Left) + Time Ruler (Right) */}
       <div style={{
-        height: 24,
+        height: 28,
         background: '#111114',
         borderBottom: '1px solid var(--border-subtle)',
         display: 'flex',
         flexShrink: 0,
+        userSelect: 'none',
       }}>
         {/* Left header spacer */}
         <div style={{
@@ -370,24 +434,27 @@ export function Timeline({
           Layers ({tracks.length})
         </div>
 
-        {/* Right synchronized time ruler */}
+        {/* Right synchronized time ruler with scrollable content */}
         <div
-          ref={timelineRef}
+          ref={rulerScrollRef}
           onMouseDown={handleRulerMouseDown}
+          onScroll={handleRulerScroll}
           style={{
             flex: 1,
-            overflow: 'hidden',
+            overflowX: 'hidden',
+            overflowY: 'hidden',
             position: 'relative',
-            cursor: 'pointer',
+            cursor: 'ew-resize',
             background: '#111114',
           }}
+          title="Click or drag anywhere in the time ruler to scrub"
         >
           <div style={{
             width: timelineWidth,
             height: '100%',
             position: 'relative',
-            transform: `translateX(-${lanesScrollRef.current?.scrollLeft || 0}px)`,
           }}>
+            {/* Ruler Ticks */}
             {rulerTicks.map((sec) => (
               <div
                 key={sec}
@@ -401,13 +468,70 @@ export function Timeline({
                   fontSize: 9,
                   fontFamily: 'var(--font-mono)',
                   color: '#64748b',
-                  lineHeight: '24px',
+                  lineHeight: '28px',
                   pointerEvents: 'none',
                 }}
               >
                 {sec}s
               </div>
             ))}
+
+            {/* Ruler Playhead Marker & Grab Handle */}
+            <div
+              onMouseDown={handlePlayheadMouseDown}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: currentTime * pxPerSecond,
+                transform: 'translateX(-50%)',
+                zIndex: 50,
+                cursor: 'ew-resize',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                pointerEvents: 'auto',
+              }}
+              title={`Playhead: ${formatTimecode(currentTime)} (Click or drag to scrub)`}
+            >
+              {/* Wide Invisible Grab Hitbox */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                width: 32,
+                height: 28,
+                cursor: 'ew-resize',
+              }} />
+
+              {/* Amber Badge */}
+              <div style={{
+                background: isScrubbing ? '#fbbf24' : '#f59e0b',
+                color: '#18181b',
+                fontSize: 9,
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                padding: '1px 5px',
+                borderRadius: '3px 3px 0 0',
+                boxShadow: isScrubbing
+                  ? '0 0 10px rgba(245, 158, 11, 0.9), 0 2px 4px rgba(0,0,0,0.8)'
+                  : '0 2px 5px rgba(0,0,0,0.8)',
+                border: '1px solid #78350f',
+                userSelect: 'none',
+                lineHeight: 1.3,
+                transition: 'background 0.1s, box-shadow 0.1s',
+              }}>
+                {formatTimecode(currentTime)}
+              </div>
+
+              {/* Triangle pointer */}
+              <div style={{
+                width: 0,
+                height: 0,
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderTop: isScrubbing ? '6px solid #fbbf24' : '6px solid #f59e0b',
+                transition: 'border-top-color 0.1s',
+              }} />
+            </div>
           </div>
         </div>
       </div>
@@ -513,13 +637,16 @@ export function Timeline({
         <div
           ref={lanesScrollRef}
           onScroll={handleLanesScroll}
+          onMouseDown={handleLanesMouseDown}
           style={{
             flex: 1,
             overflowX: 'auto',
             overflowY: 'auto',
             position: 'relative',
             background: 'var(--bg-timeline)',
+            cursor: isScrubbing ? 'ew-resize' : 'crosshair',
           }}
+          title="Click or drag anywhere in the timeline lanes to position the playhead"
         >
           <div style={{ width: timelineWidth, position: 'relative', minHeight: '100%' }}>
             {/* Track Lanes */}
@@ -558,6 +685,7 @@ export function Timeline({
                       return (
                         <div
                           key={clip.id}
+                          className="timeline-clip-item"
                           onClick={(e) => {
                             e.stopPropagation();
                             onSelectClip(clip.id);
@@ -713,29 +841,33 @@ export function Timeline({
               })}
             </div>
 
-            {/* Amber Playhead Line */}
+            {/* Amber Playhead Full-Height Track Line (Draggable & Clickable) */}
             <div
+              onMouseDown={handlePlayheadMouseDown}
               style={{
                 position: 'absolute',
                 top: 0,
                 bottom: 0,
                 left: currentTime * pxPerSecond,
-                width: 1.5,
-                background: '#f59e0b',
-                pointerEvents: 'none',
+                transform: 'translateX(-50%)',
+                width: 14,
+                cursor: 'ew-resize',
                 zIndex: 40,
+                display: 'flex',
+                justifyContent: 'center',
+                pointerEvents: 'auto',
               }}
+              title={`Playhead: ${formatTimecode(currentTime)} (Click or drag to move)`}
             >
-              {/* Triangular Cursor Head */}
+              {/* Visible Amber Line */}
               <div style={{
-                position: 'absolute',
-                top: 0,
-                left: -4.5,
-                width: 0,
-                height: 0,
-                borderLeft: '5px solid transparent',
-                borderRight: '5px solid transparent',
-                borderTop: '7px solid #f59e0b',
+                width: isScrubbing ? 2.5 : 1.5,
+                height: '100%',
+                background: isScrubbing ? '#fbbf24' : '#f59e0b',
+                boxShadow: isScrubbing
+                  ? '0 0 8px rgba(245, 158, 11, 0.9), 0 0 2px #f59e0b'
+                  : '0 0 3px rgba(0,0,0,0.8)',
+                transition: 'width 0.1s, background 0.1s, box-shadow 0.1s',
               }} />
             </div>
           </div>
