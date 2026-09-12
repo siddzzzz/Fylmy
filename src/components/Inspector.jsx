@@ -726,6 +726,61 @@ export function Inspector({
               </div>
             </div>
 
+            {/* Stroke Outline & Text Shadow for Viral Legibility */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>Outline Width</div>
+                <input
+                  type="range"
+                  min="0"
+                  max="12"
+                  step="1"
+                  value={textConfig.strokeWidth || 0}
+                  onChange={(e) => updateText('strokeWidth', parseInt(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>Outline Color</div>
+                <input
+                  type="color"
+                  value={textConfig.strokeColor || '#000000'}
+                  onChange={(e) => updateText('strokeColor', e.target.value)}
+                  style={{ width: '100%', height: 28, borderRadius: 3, background: 'none', border: '1px solid #282832', cursor: 'pointer' }}
+                />
+              </div>
+            </div>
+
+            {/* Background Style Presets */}
+            <div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Backdrop Badge</div>
+              <div style={{ display: 'flex', gap: 3 }}>
+                {[
+                  { label: 'None', val: 'transparent' },
+                  { label: 'Dark Pill', val: 'rgba(0,0,0,0.85)' },
+                  { label: 'Blue', val: '#2563eb' },
+                  { label: 'Red', val: '#dc2626' },
+                ].map((b) => (
+                  <button
+                    key={b.label}
+                    onClick={() => updateText('bgColor', b.val)}
+                    style={{
+                      flex: 1,
+                      padding: '4px 0',
+                      borderRadius: 3,
+                      fontSize: 10,
+                      background: textConfig.bgColor === b.val ? '#252532' : '#141418',
+                      border: textConfig.bgColor === b.val ? '1px solid #3b82f6' : '1px solid #282832',
+                      color: textConfig.bgColor === b.val ? '#60a5fa' : '#94a3b8',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: 4 }}>
               {['left', 'center', 'right'].map((align) => (
                 <button
@@ -746,6 +801,37 @@ export function Inspector({
                   {align}
                 </button>
               ))}
+            </div>
+
+            {/* Text 1-Click Fades */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.8 }}>
+                Title Entrance & Exit Fades
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[
+                  { label: 'Pop In (0s)', in: 0, out: 0 },
+                  { label: 'Fade In (0.5s)', in: 0.5, out: 0.5 },
+                  { label: 'Cinematic (1s)', in: 1.0, out: 1.0 },
+                ].map((f) => (
+                  <button
+                    key={f.label}
+                    onClick={() => onUpdateClip(selectedClip.id, { fadeIn: f.in, fadeOut: f.out })}
+                    style={{
+                      flex: 1,
+                      padding: '4px 0',
+                      borderRadius: 3,
+                      fontSize: 10,
+                      background: (selectedClip.fadeIn || 0) === f.in ? '#1e3a8a' : '#15151b',
+                      border: (selectedClip.fadeIn || 0) === f.in ? '1px solid #3b82f6' : '1px solid #282832',
+                      color: (selectedClip.fadeIn || 0) === f.in ? '#ffffff' : '#94a3b8',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

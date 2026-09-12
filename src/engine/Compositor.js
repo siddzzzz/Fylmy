@@ -410,10 +410,18 @@ export class Compositor {
       }
 
       // Text Shadow for contrast
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 10;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
+
+      // Text Outline / Stroke (Viral Captions & High Legibility)
+      if (config.strokeWidth && config.strokeWidth > 0) {
+        ctx.strokeStyle = config.strokeColor || '#000000';
+        ctx.lineWidth = Math.round((config.strokeWidth / 1080) * canvasHeight) || 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(line, x, lineY);
+      }
 
       // Text Fill
       ctx.fillStyle = config.color || '#ffffff';

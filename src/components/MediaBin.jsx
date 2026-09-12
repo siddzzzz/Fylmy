@@ -475,40 +475,79 @@ export function MediaBin({
           </div>
         )}
 
-        {/* TAB 3: TITLES */}
+        {/* TAB 3: TITLES & SUBTITLES */}
         {activeTab === 'text' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
-              Standard Title Cards
+              Social Captions & Title Cards
             </div>
 
             {[
               {
-                title: 'Broadcast Lower Third',
-                desc: 'Clean matte bar with presenter credit',
-                text: 'SPEAKER NAME\nLead Video Editor',
-                fontSize: 34,
-                color: '#ffffff',
-                bgColor: 'rgba(18,18,22,0.85)',
-                yPos: 82,
+                title: '⚡ Viral Reel / Shorts Subtitle',
+                desc: 'High-retention bold yellow text with outline',
+                text: 'WAIT UNTIL THE END! 🤯',
+                fontSize: 38,
+                color: '#facc15',
+                strokeColor: '#000000',
+                strokeWidth: 4,
+                bgColor: 'rgba(0,0,0,0.85)',
+                yPos: 80,
               },
               {
-                title: 'Main Feature Title',
-                desc: 'Minimalist centered headline',
-                text: 'FEATURE FILM TITLE',
+                title: '🔥 Attention-Grabbing Hook',
+                desc: 'Top headline to boost video watch-time',
+                text: 'HOW TO EDIT LIKE A PRO',
+                fontSize: 44,
+                color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 3,
+                bgColor: '#2563eb',
+                yPos: 20,
+              },
+              {
+                title: '🎙️ Broadcast Lower Third',
+                desc: 'Presenter name & role banner',
+                text: 'ALEX RIVERA\nLead Video Producer',
+                fontSize: 32,
+                color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 0,
+                bgColor: 'rgba(18,18,24,0.9)',
+                yPos: 84,
+              },
+              {
+                title: '🔔 Subscribe & Like Pill',
+                desc: 'Call to action banner for YouTube',
+                text: '▶ SUBSCRIBE & TURN ON NOTIFICATIONS',
+                fontSize: 30,
+                color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 0,
+                bgColor: '#dc2626',
+                yPos: 88,
+              },
+              {
+                title: '🚨 Breaking News Alert',
+                desc: 'Urgent topic header bar',
+                text: 'BREAKING UPDATE:\nImportant Announcement',
+                fontSize: 36,
+                color: '#fef08a',
+                strokeColor: '#000000',
+                strokeWidth: 0,
+                bgColor: 'rgba(153, 27, 27, 0.95)',
+                yPos: 22,
+              },
+              {
+                title: '🎬 Cinematic Feature Title',
+                desc: 'Minimalist centered typography',
+                text: 'THE FINAL CUT',
                 fontSize: 56,
                 color: '#ffffff',
+                strokeColor: '#000000',
+                strokeWidth: 0,
                 bgColor: 'transparent',
                 yPos: 50,
-              },
-              {
-                title: 'Subtitle Translation',
-                desc: 'Accented dialog caption',
-                text: 'Dialogue spoken here with crisp contrast.',
-                fontSize: 32,
-                color: '#fbbf24',
-                bgColor: 'rgba(0,0,0,0.75)',
-                yPos: 88,
               },
             ].map((preset, idx) => (
               <div
@@ -521,25 +560,29 @@ export function MediaBin({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  gap: 6,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>{preset.title}</div>
-                  <div style={{ fontSize: 10, color: '#71717a' }}>{preset.desc}</div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {preset.title}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#71717a', marginTop: 1 }}>{preset.desc}</div>
                 </div>
                 <button
                   onClick={() => onAddTextToTimeline(preset)}
                   style={{
-                    padding: '5px 8px',
+                    padding: '4px 8px',
                     borderRadius: 3,
-                    background: '#252530',
-                    border: '1px solid #383847',
-                    color: '#d4d4d8',
-                    fontSize: 11,
-                    fontWeight: 600,
+                    background: '#242430',
+                    border: '1px solid #383848',
+                    color: '#e2e8f0',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    flexShrink: 0,
                   }}
                 >
-                  <Plus size={11} />
+                  <Plus size={10} />
                   <span>Add</span>
                 </button>
               </div>
