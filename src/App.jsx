@@ -654,7 +654,7 @@ export default function App() {
 
   // --- Add Items to Timeline (Single / Atomic) ---
 
-  const handleAddClipToTimeline = useCallback((asset, specificTrackId = null) => {
+  const handleAddClipToTimeline = useCallback((asset, specificTrackId = null, startTime = null) => {
     setTracks((prevTracks) => {
       let targetTrackId = specificTrackId;
       let newTrackToInsert = null;
@@ -705,7 +705,7 @@ export default function App() {
         }
       }
 
-      const nextStart = currentTime;
+      const nextStart = startTime !== null ? Math.max(0, startTime) : currentTime;
       const isBaseTrack = targetTrackId === 'track-v1';
       const newClip = {
         id: 'clip-' + Math.random().toString(36).substring(2, 9),
@@ -765,6 +765,17 @@ export default function App() {
       );
     });
   }, [selectedClip, currentTime, pushHistory]);
+
+  // Import and immediately add dropped external file to timeline
+  const handleImportAndAddClip = useCallback(async (file, specificTrackId = null, startTime = null) => {
+    try {
+      const asset = await processImportedFile(file);
+      setMediaAssets((prev) => [...prev, asset]);
+      handleAddClipToTimeline(asset, specificTrackId, startTime);
+    } catch (err) {
+      console.error('Failed to import dropped file:', err);
+    }
+  }, [handleAddClipToTimeline]);
 
   const handleAddBlurToTimeline = useCallback((style = 'gaussian') => {
     const newBlurClip = {
@@ -1030,6 +1041,11 @@ export default function App() {
         onDeleteTrack={handleDeleteTrack}
         onToggleMuteTrack={handleToggleMuteTrack}
         onToggleLockTrack={handleToggleLockTrack}
+        onAddClipToTimeline={handleAddClipToTimeline}
+        onImportAndAddClip={handleImportAndAddClip}
+        onImportFiles={handleImportFiles}
+        onAddDemoClip={handleAddDemoClip}
+        onAddDemoAudio={handleAddDemoAudio}
         pxPerSecond={pxPerSecond}
         setPxPerSecond={setPxPerSecond}
       />

@@ -199,6 +199,12 @@ export function MediaBin({
                   {mediaAssets.map((asset) => (
                     <div
                       key={asset.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/json', JSON.stringify({ type: 'asset', asset }));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      title="Drag and drop onto timeline track, or use layer buttons"
                       style={{
                         background: '#19191f',
                         borderRadius: 4,
@@ -207,6 +213,14 @@ export function MediaBin({
                         position: 'relative',
                         display: 'flex',
                         flexDirection: 'column',
+                        cursor: 'grab',
+                        transition: 'border-color 0.15s, transform 0.1s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#47475a';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#282832';
                       }}
                     >
                       {/* Thumbnail */}

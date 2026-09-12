@@ -16,6 +16,9 @@ import {
   Plus,
   Layers,
   Clock,
+  Upload,
+  FileVideo,
+  FolderOpen,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -40,6 +43,11 @@ export function Timeline({
   onDeleteTrack,
   onToggleMuteTrack,
   onToggleLockTrack,
+  onAddClipToTimeline,
+  onImportAndAddClip,
+  onImportFiles,
+  onAddDemoClip,
+  onAddDemoAudio,
   pxPerSecond = 55,
   setPxPerSecond,
 }) {
@@ -52,6 +60,8 @@ export function Timeline({
   const [dragInfo, setDragInfo] = useState(null); // { mode, clipId, sourceTrackId, targetTrackId, startX, startY, initStart, initDuration, initOffset, clipType }
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [durationPopoverOpen, setDurationPopoverOpen] = useState(false);
+  const [dropTargetTrackId, setDropTargetTrackId] = useState(null);
+  const [dropTargetTime, setDropTargetTime] = useState(0);
 
   // Collect all cut points for magnetic snapping
   const snapTargets = useMemo(() => {
@@ -244,6 +254,54 @@ export function Timeline({
 
   const videoTrackCount = tracks.filter((t) => t.type === 'video').length;
   const audioTrackCount = tracks.filter((t) => t.type === 'audio').length;
+
+  const totalClipCount = useMemo(() => tracks.reduce((sum, t) => sum + t.clips.length, 0), [tracks]);
+
+  // Handle Drag Over Track Lane
+  const handleTrackDragOver = (e, trackId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    const time = clientXToTime(e.clientX, snapEnabled);
+    setDropTargetTrackId(trackId);
+    setDropTargetTime(time);
+  };
+
+  const handleTrackDragLeave = (e) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setDropTargetTrackId(null);
+  };
+
+  const handleTrackDrop = async (e, trackId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropTime = clientXToTime(e.clientX, snapEnabled);
+    setDropTargetTrackId(null);
+
+    // 1. Check if files were dragged from OS desktop/explorer
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      for (const file of files) {
+        if (onImportAndAddClip) {
+          onImportAndAddClip(file, trackId, dropTime);
+        }
+      }
+      return;
+    }
+
+    // 2. Check if internal asset from MediaBin
+    const jsonData = e.dataTransfer.getData('application/json');
+    if (jsonData) {
+      try {
+        const payload = JSON.parse(jsonData);
+        if (payload.type === 'asset' && payload.asset && onAddClipToTimeline) {
+          onAddClipToTimeline(payload.asset, trackId, dropTime);
+        }
+      } catch (err) {
+        console.error('Failed to parse dropped clip payload:', err);
+      }
+    }
+  };
 
   return (
     <div style={{
@@ -814,6 +872,7 @@ export function Timeline({
             <div style={{ position: 'relative' }}>
               {tracks.map((track) => {
                 const isHoverTarget = dragInfo?.targetTrackId === track.id && dragInfo?.sourceTrackId !== track.id;
+                const isDropTarget = dropTargetTrackId === track.id;
 
                 return (
                   <div
@@ -822,19 +881,49 @@ export function Timeline({
                       if (el) trackLaneRefs.current.set(track.id, el);
                       else trackLaneRefs.current.delete(track.id);
                     }}
+                    onDragOver={(e) => handleTrackDragOver(e, track.id)}
+                    onDragLeave={handleTrackDragLeave}
+                    onDrop={(e) => handleTrackDrop(e, track.id)}
                     style={{
                       height: track.height || 40,
                       borderBottom: '1px solid #1c1c22',
                       position: 'relative',
                       background: track.locked
                         ? 'rgba(0,0,0,0.4)'
-                        : isHoverTarget
+                        : isHoverTarget || isDropTarget
                         ? '#1a233a'
                         : '#141418',
-                      boxShadow: isHoverTarget ? 'inset 0 0 0 1.5px #3b82f6' : 'none',
+                      boxShadow: isHoverTarget || isDropTarget ? 'inset 0 0 0 1.5px #3b82f6' : 'none',
                       transition: 'background 0.1s, box-shadow 0.1s',
                     }}
                   >
+                    {/* Live Drag-and-Drop Placement Ghost */}
+                    {isDropTarget && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: dropTargetTime * pxPerSecond,
+                          top: 2,
+                          bottom: 2,
+                          width: 140,
+                          background: 'rgba(59, 130, 246, 0.25)',
+                          border: '1.5px dashed #60a5fa',
+                          borderRadius: 2,
+                          zIndex: 25,
+                          pointerEvents: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#93c5fd',
+                          fontSize: 10,
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Drop at {dropTargetTime.toFixed(1)}s
+                      </div>
+                    )}
+
                     {/* Clips on this track */}
                     {track.clips.map((clip) => {
                       const isSelected = selectedClipId === clip.id;
@@ -1001,6 +1090,90 @@ export function Timeline({
                 );
               })}
             </div>
+
+            {/* Guided Empty State Dropzone when timeline has 0 clips */}
+            {totalClipCount === 0 && (
+              <div
+                onDragOver={(e) => handleTrackDragOver(e, 'track-v1')}
+                onDragLeave={handleTrackDragLeave}
+                onDrop={(e) => handleTrackDrop(e, 'track-v1')}
+                style={{
+                  position: 'absolute',
+                  top: 25,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '90%',
+                  maxWidth: 540,
+                  border: '1.5px dashed #2f2f3e',
+                  borderRadius: 6,
+                  background: 'rgba(18, 18, 23, 0.92)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  zIndex: 15,
+                  padding: '16px 20px',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#f1f5f9', fontSize: 13, fontWeight: 700 }}>
+                  <Upload size={15} color="#3b82f6" />
+                  <span>Drag & Drop Media Directly onto Timeline</span>
+                </div>
+                <div style={{ fontSize: 11, color: '#71717a', textAlign: 'center', lineHeight: 1.4 }}>
+                  Drag footage from the Media Pool or drop files directly from your computer to start editing.
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  {onAddDemoClip && (
+                    <button
+                      onClick={onAddDemoClip}
+                      style={{
+                        padding: '5px 12px',
+                        borderRadius: 3,
+                        background: '#1d3257',
+                        border: '1px solid #2b5292',
+                        color: '#93c5fd',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                      }}
+                    >
+                      <FileVideo size={12} color="#60a5fa" />
+                      <span>+ Load Sample Video</span>
+                    </button>
+                  )}
+                  <label
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 3,
+                      background: '#22222a',
+                      border: '1px solid #363644',
+                      color: '#f1f5f9',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <FolderOpen size={12} color="#94a3b8" />
+                    <span>Import Files</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="video/*,audio/*,image/*"
+                      onChange={onImportFiles}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
 
             {/* Amber Playhead Full-Height Track Line (Draggable & Clickable) */}
             <div
