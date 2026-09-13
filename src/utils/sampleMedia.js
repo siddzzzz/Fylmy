@@ -25,11 +25,12 @@ export async function processImportedFile(file) {
         // Extract a primary poster thumbnail + a filmstrip of frame slices across video duration
         const frames = [];
         const thumbCanvas = document.createElement('canvas');
-        thumbCanvas.width = 96;
-        thumbCanvas.height = 54;
+        thumbCanvas.width = 120;
+        thumbCanvas.height = 68;
         const ctx = thumbCanvas.getContext('2d');
 
-        const frameSampleCount = Math.min(10, Math.max(3, Math.floor(videoDuration / 2)));
+        // Extract up to 24 frames depending on video duration (at least 1 frame every ~1.5s)
+        const frameSampleCount = Math.min(24, Math.max(5, Math.floor(videoDuration * 0.8)));
         const step = videoDuration / (frameSampleCount + 1);
 
         for (let i = 1; i <= frameSampleCount; i++) {
@@ -42,12 +43,12 @@ export async function processImportedFile(file) {
                 res();
               };
               vid.addEventListener('seeked', onSeeked);
-              setTimeout(res, 250); // safety fallback timeout
+              setTimeout(res, 200); // safety fallback timeout
             });
-            ctx.drawImage(vid, 0, 0, 96, 54);
+            ctx.drawImage(vid, 0, 0, 120, 68);
             frames.push({
               time: targetT,
-              dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.65),
+              dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.7),
             });
           } catch (e) {
             console.warn('Frame strip extraction warning:', e);

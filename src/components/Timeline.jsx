@@ -1113,10 +1113,11 @@ export function Timeline({
                             width: clipWidth,
                             top: 3,
                             bottom: 3,
-                            borderRadius: 2,
-                            background: track.color || '#1e3a8a',
-                            border: isSelected ? '1px solid #ffffff' : '1px solid rgba(255,255,255,0.15)',
-                            boxShadow: isSelected ? '0 0 0 1px #3b82f6' : '0 1px 2px rgba(0,0,0,0.5)',
+                            borderRadius: 3,
+                            background: track.type === 'video' ? '#0f141c' : (track.color || '#1e3a8a'),
+                            border: isSelected ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.18)',
+                            borderTop: track.type === 'video' ? (isSelected ? '2px solid #60a5fa' : '2px solid #3b82f6') : (isSelected ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.18)'),
+                            boxShadow: isSelected ? '0 0 0 1px #3b82f6, 0 2px 8px rgba(0,0,0,0.6)' : '0 1px 3px rgba(0,0,0,0.5)',
                             cursor: track.locked ? 'not-allowed' : 'grab',
                             display: 'flex',
                             alignItems: 'center',
@@ -1164,8 +1165,9 @@ export function Timeline({
                             const frames = asset?.frames || [];
                             const thumbUrl = asset?.thumbnailUrl;
 
-                            const tileWidth = pxPerSecond >= 350 ? Math.max(70, pxPerSecond * 0.5) : Math.max(48, Math.min(80, pxPerSecond * 0.8));
+                            const tileWidth = pxPerSecond >= 350 ? Math.max(72, pxPerSecond * 0.5) : Math.max(52, Math.min(84, pxPerSecond * 0.8));
                             const isFrameZoom = pxPerSecond >= 350;
+                            const totalTiles = Math.max(1, Math.ceil(clipWidth / tileWidth));
 
                             if (frames.length > 0) {
                               return (
@@ -1174,42 +1176,62 @@ export function Timeline({
                                   inset: 0,
                                   display: 'flex',
                                   overflow: 'hidden',
-                                  opacity: isFrameZoom ? 0.6 : 0.38,
+                                  opacity: 0.92,
                                   pointerEvents: 'none',
                                   zIndex: 1,
                                 }}>
-                                  {frames.map((fr, idx) => (
-                                    <div
-                                      key={idx}
-                                      style={{
-                                        height: '100%',
-                                        width: tileWidth,
-                                        minWidth: tileWidth,
-                                        backgroundImage: `url(${fr.dataUrl})`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
-                                        borderRight: '1px solid rgba(0,0,0,0.5)',
-                                        position: 'relative',
-                                      }}
-                                    >
-                                      {isFrameZoom && (
-                                        <span style={{
-                                          position: 'absolute',
-                                          bottom: 1,
-                                          right: 2,
-                                          fontSize: 8,
-                                          fontFamily: 'var(--font-mono)',
-                                          fontWeight: 700,
-                                          color: '#f8fafc',
-                                          background: 'rgba(0,0,0,0.7)',
-                                          padding: '0 2px',
-                                          borderRadius: 2,
-                                        }}>
-                                          {fr.time ? `${fr.time.toFixed(1)}s` : `#${idx + 1}`}
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
+                                  {Array.from({ length: totalTiles }).map((_, idx) => {
+                                    // Map tile idx to video time accounting for clip offset and duration
+                                    const tileTime = (clip.offset || 0) + (totalTiles > 1 ? (idx / (totalTiles - 1)) * clip.duration : 0);
+                                    let bestFrame = frames[0];
+                                    let minDiff = Infinity;
+                                    for (const fr of frames) {
+                                      if (fr.time !== undefined) {
+                                        const diff = Math.abs(fr.time - tileTime);
+                                        if (diff < minDiff) {
+                                          minDiff = diff;
+                                          bestFrame = fr;
+                                        }
+                                      }
+                                    }
+                                    if (!bestFrame && frames.length > 0) {
+                                      const frameIdx = Math.min(frames.length - 1, Math.floor((idx / totalTiles) * frames.length));
+                                      bestFrame = frames[frameIdx];
+                                    }
+
+                                    return (
+                                      <div
+                                        key={idx}
+                                        style={{
+                                          height: '100%',
+                                          width: tileWidth,
+                                          minWidth: tileWidth,
+                                          backgroundImage: `url(${bestFrame.dataUrl})`,
+                                          backgroundSize: 'cover',
+                                          backgroundPosition: 'center',
+                                          borderRight: '1px solid rgba(0,0,0,0.65)',
+                                          position: 'relative',
+                                        }}
+                                      >
+                                        {isFrameZoom && (
+                                          <span style={{
+                                            position: 'absolute',
+                                            bottom: 1,
+                                            right: 2,
+                                            fontSize: 8,
+                                            fontFamily: 'var(--font-mono)',
+                                            fontWeight: 700,
+                                            color: '#f8fafc',
+                                            background: 'rgba(0,0,0,0.8)',
+                                            padding: '0 3px',
+                                            borderRadius: 2,
+                                          }}>
+                                            {bestFrame.time ? `${bestFrame.time.toFixed(1)}s` : `#${idx + 1}`}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             } else if (thumbUrl) {
@@ -1219,11 +1241,11 @@ export function Timeline({
                                   inset: 0,
                                   display: 'flex',
                                   overflow: 'hidden',
-                                  opacity: isFrameZoom ? 0.55 : 0.35,
+                                  opacity: 0.9,
                                   pointerEvents: 'none',
                                   zIndex: 1,
                                 }}>
-                                  {Array.from({ length: Math.max(1, Math.ceil(clipWidth / tileWidth)) }).map((_, idx) => (
+                                  {Array.from({ length: totalTiles }).map((_, idx) => (
                                     <div
                                       key={idx}
                                       style={{
@@ -1233,7 +1255,7 @@ export function Timeline({
                                         backgroundImage: `url(${thumbUrl})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
-                                        borderRight: '1px solid rgba(0,0,0,0.3)',
+                                        borderRight: '1px solid rgba(0,0,0,0.4)',
                                       }}
                                     />
                                   ))}
@@ -1245,9 +1267,9 @@ export function Timeline({
 
                           {/* Clip Label */}
                           <div style={{
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 4,
+                            gap: 5,
                             fontSize: 10,
                             fontWeight: 600,
                             color: '#f8fafc',
@@ -1257,11 +1279,16 @@ export function Timeline({
                             pointerEvents: 'none',
                             position: 'relative',
                             zIndex: 3,
+                            background: track.type === 'video' ? 'rgba(15, 23, 42, 0.78)' : 'transparent',
+                            padding: track.type === 'video' ? '2px 6px' : '0',
+                            borderRadius: 4,
+                            backdropFilter: track.type === 'video' ? 'blur(4px)' : 'none',
+                            boxShadow: track.type === 'video' ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
                             textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.8)',
                           }}>
                             {track.type === 'blur' ? <Key size={10} color="#f59e0b" /> : null}
                             <span>{clip.name}</span>
-                            <span style={{ fontSize: 9, color: '#e2e8f0', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                            <span style={{ fontSize: 9, color: '#93c5fd', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                               [{formatSecondsOnly(clip.duration)}]
                             </span>
                           </div>
