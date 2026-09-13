@@ -1066,6 +1066,7 @@ export default function App() {
         onImportFiles={handleImportFiles}
         onAddDemoClip={handleAddDemoClip}
         onAddDemoAudio={handleAddDemoAudio}
+        mediaAssets={mediaAssets}
         timelineHeight={timelineHeight}
         setTimelineHeight={setTimelineHeight}
         pxPerSecond={pxPerSecond}

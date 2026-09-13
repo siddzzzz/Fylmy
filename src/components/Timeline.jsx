@@ -55,6 +55,7 @@ export function Timeline({
   setPxPerSecond,
   timelineHeight = 290,
   setTimelineHeight,
+  mediaAssets = [],
 }) {
   const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
@@ -1102,6 +1103,70 @@ export function Timeline({
                             />
                           )}
 
+                          {/* Video Filmstrip Frame Previews (DaVinci/Premiere style) */}
+                          {track.type === 'video' && (() => {
+                            const asset = mediaAssets.find((a) => a.id === clip.assetId);
+                            const frames = asset?.frames || [];
+                            const thumbUrl = asset?.thumbnailUrl;
+
+                            if (frames.length > 0) {
+                              return (
+                                <div style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  display: 'flex',
+                                  overflow: 'hidden',
+                                  opacity: 0.38,
+                                  pointerEvents: 'none',
+                                  zIndex: 1,
+                                }}>
+                                  {frames.map((fr, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        height: '100%',
+                                        width: 56,
+                                        minWidth: 56,
+                                        backgroundImage: `url(${fr.dataUrl})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        borderRight: '1px solid rgba(0,0,0,0.4)',
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            } else if (thumbUrl) {
+                              return (
+                                <div style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  display: 'flex',
+                                  overflow: 'hidden',
+                                  opacity: 0.35,
+                                  pointerEvents: 'none',
+                                  zIndex: 1,
+                                }}>
+                                  {Array.from({ length: Math.max(1, Math.ceil(clipWidth / 56)) }).map((_, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        height: '100%',
+                                        width: 56,
+                                        minWidth: 56,
+                                        backgroundImage: `url(${thumbUrl})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        borderRight: '1px solid rgba(0,0,0,0.3)',
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+
                           {/* Clip Label */}
                           <div style={{
                             display: 'flex',
@@ -1114,10 +1179,13 @@ export function Timeline({
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             pointerEvents: 'none',
+                            position: 'relative',
+                            zIndex: 3,
+                            textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.8)',
                           }}>
                             {track.type === 'blur' ? <Key size={10} color="#f59e0b" /> : null}
                             <span>{clip.name}</span>
-                            <span style={{ fontSize: 9, color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                            <span style={{ fontSize: 9, color: '#e2e8f0', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                               [{formatSecondsOnly(clip.duration)}]
                             </span>
                           </div>

@@ -39,6 +39,12 @@ export async function generateDynamicDemoVideo(name = 'Action Clip (Moving Targe
   });
 
   const chunks = [];
+  const capturedFrames = [];
+  const thumbCanvas = document.createElement('canvas');
+  thumbCanvas.width = 96;
+  thumbCanvas.height = 54;
+  const thumbCtx = thumbCanvas.getContext('2d');
+
   recorder.ondataavailable = (e) => {
     if (e.data.size > 0) chunks.push(e.data);
   };
@@ -58,7 +64,8 @@ export async function generateDynamicDemoVideo(name = 'Action Clip (Moving Targe
         duration: durationSeconds,
         width: 1280,
         height: 720,
-        thumbnailUrl: createVideoThumbnailFromCanvas(canvas),
+        thumbnailUrl: capturedFrames.length > 0 ? capturedFrames[0].dataUrl : createVideoThumbnailFromCanvas(canvas),
+        frames: capturedFrames,
       });
     };
   });
@@ -157,6 +164,15 @@ export async function generateDynamicDemoVideo(name = 'Action Clip (Moving Targe
     ctx.fillText(`TIME: ${elapsed.toFixed(2)}s / ${durationSeconds}s | FRAME: ${frame}`, 40, 95);
     ctx.fillStyle = '#f43f5e';
     ctx.fillText(`TARGET AT: X: ${Math.round(subjectX)}, Y: ${Math.round(subjectY)} [TRY BLUR TRACKING]`, 40, 125);
+
+    // Periodic filmstrip snapshot (every 1.5s)
+    if (frame % 45 === 0 && capturedFrames.length < 8) {
+      thumbCtx.drawImage(canvas, 0, 0, 96, 54);
+      capturedFrames.push({
+        time: elapsed,
+        dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.65),
+      });
+    }
 
     frame++;
     if (frame < totalFrames) {
@@ -288,26 +304,59 @@ export async function processImportedFile(file) {
     if (type === 'video') {
       const vid = document.createElement('video');
       vid.src = url;
-      vid.preload = 'metadata';
-      vid.onloadedmetadata = () => {
-        vid.currentTime = Math.min(1, vid.duration / 2);
-      };
-      vid.onseeked = () => {
+      vid.preload = 'auto';
+      vid.crossOrigin = 'anonymous';
+
+      vid.onloadedmetadata = async () => {
+        const videoDuration = vid.duration || 10;
+        const width = vid.videoWidth || 1920;
+        const height = vid.videoHeight || 1080;
+
+        // Extract a primary poster thumbnail + a filmstrip of frame slices across video duration
+        const frames = [];
         const thumbCanvas = document.createElement('canvas');
-        thumbCanvas.width = 160;
-        thumbCanvas.height = 90;
+        thumbCanvas.width = 96;
+        thumbCanvas.height = 54;
         const ctx = thumbCanvas.getContext('2d');
-        ctx.drawImage(vid, 0, 0, 160, 90);
+
+        const frameSampleCount = Math.min(10, Math.max(3, Math.floor(videoDuration / 2)));
+        const step = videoDuration / (frameSampleCount + 1);
+
+        for (let i = 1; i <= frameSampleCount; i++) {
+          try {
+            const targetT = i * step;
+            vid.currentTime = targetT;
+            await new Promise((res) => {
+              const onSeeked = () => {
+                vid.removeEventListener('seeked', onSeeked);
+                res();
+              };
+              vid.addEventListener('seeked', onSeeked);
+              setTimeout(res, 250); // safety fallback timeout
+            });
+            ctx.drawImage(vid, 0, 0, 96, 54);
+            frames.push({
+              time: targetT,
+              dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.65),
+            });
+          } catch (e) {
+            console.warn('Frame strip extraction warning:', e);
+          }
+        }
+
+        const primaryThumb = frames.length > 0 ? frames[0].dataUrl : null;
+
         resolve({
           id: 'asset-' + Math.random().toString(36).substring(2, 9),
           name: file.name,
           type: 'video',
           url,
           blob: file,
-          duration: vid.duration,
-          width: vid.videoWidth || 1920,
-          height: vid.videoHeight || 1080,
-          thumbnailUrl: thumbCanvas.toDataURL('image/jpeg', 0.8),
+          duration: videoDuration,
+          width,
+          height,
+          thumbnailUrl: primaryThumb,
+          frames,
         });
       };
       vid.onerror = () => {
@@ -321,6 +370,7 @@ export async function processImportedFile(file) {
           width: 1920,
           height: 1080,
           thumbnailUrl: null,
+          frames: [],
         });
       };
     } else if (type === 'audio') {
