@@ -859,6 +859,22 @@ export default function App() {
     handleUpdateClip(selectedClip.id, { filters: { ...filterValues } });
   }, [selectedClip, handleUpdateClip]);
 
+  // Rename media asset inside editor Media Pool and sync clip names
+  const handleRenameMediaAsset = useCallback((assetId, newName) => {
+    if (!newName || !newName.trim()) return;
+    const cleanName = newName.trim();
+    setMediaAssets((prev) =>
+      prev.map((a) => (a.id === assetId ? { ...a, name: cleanName } : a))
+    );
+    // Also update any clips on timeline derived from this asset that have matching name
+    setTracks((prevTracks) =>
+      prevTracks.map((t) => ({
+        ...t,
+        clips: t.clips.map((c) => (c.assetId === assetId ? { ...c, name: cleanName } : c)),
+      }))
+    );
+  }, []);
+
   // Import local user files
   const handleImportFiles = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -988,6 +1004,7 @@ export default function App() {
           onApplyFilterPreset={handleApplyFilterPreset}
           onAddTrack={handleAddTrack}
           selectedClip={selectedClip}
+          onRenameMediaAsset={handleRenameMediaAsset}
         />
 
         <PreviewPlayer

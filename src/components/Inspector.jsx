@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sliders,
   Maximize2,
@@ -12,6 +12,8 @@ import {
   Target,
   Layers,
   Plus,
+  Edit2,
+  Check,
 } from 'lucide-react';
 import { formatSecondsOnly } from '../types/defaults';
 
@@ -52,6 +54,9 @@ export function Inspector({
       </aside>
     );
   }
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
 
   const isVideo = selectedClip.trackType === 'video';
   const isBlur = selectedClip.trackType === 'blur';
@@ -116,7 +121,7 @@ export function Inspector({
       overflowY: 'auto',
       zIndex: 20,
     }}>
-      {/* Inspector Header */}
+      {/* Inspector Header with Inline Rename Option */}
       <div style={{
         padding: '10px 14px',
         borderBottom: '1px solid var(--border-subtle)',
@@ -124,13 +129,84 @@ export function Inspector({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, overflow: 'hidden' }}>
-          {isBlur ? <Target size={14} color="#f59e0b" /> : isText ? <Type size={14} color="#fb923c" /> : <Sliders size={14} color="#60a5fa" />}
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {selectedClip.name}
-          </span>
-        </div>
+        {isEditingName ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1 }}>
+            <input
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (tempName.trim()) {
+                    onUpdateClip(selectedClip.id, { name: tempName.trim() });
+                  }
+                  setIsEditingName(false);
+                } else if (e.key === 'Escape') {
+                  setIsEditingName(false);
+                }
+              }}
+              autoFocus
+              style={{
+                flex: 1,
+                background: '#121216',
+                border: '1px solid #3b82f6',
+                color: '#ffffff',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '2px 5px',
+                borderRadius: 2,
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={() => {
+                if (tempName.trim()) {
+                  onUpdateClip(selectedClip.id, { name: tempName.trim() });
+                }
+                setIsEditingName(false);
+              }}
+              style={{ color: '#34d399', padding: 2 }}
+              title="Save Name (Enter)"
+            >
+              <Check size={12} />
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, overflow: 'hidden', flex: 1 }}>
+            {isBlur ? <Target size={14} color="#f59e0b" /> : isText ? <Type size={14} color="#fb923c" /> : <Sliders size={14} color="#60a5fa" />}
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: '#f1f5f9',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                cursor: 'text',
+              }}
+              title={`Double click to rename clip: ${selectedClip.name}`}
+              onDoubleClick={() => {
+                setIsEditingName(true);
+                setTempName(selectedClip.name);
+              }}
+            >
+              {selectedClip.name}
+            </span>
+            <button
+              onClick={() => {
+                setIsEditingName(true);
+                setTempName(selectedClip.name);
+              }}
+              style={{ color: '#64748b', padding: 2, opacity: 0.8 }}
+              title="Rename Clip (Double-click name)"
+            >
+              <Edit2 size={10} />
+            </button>
+          </div>
+        )}
+
         <button
           onClick={() => onDeleteClip(selectedClip.id)}
           title="Delete Clip (Del)"
@@ -140,6 +216,7 @@ export function Inspector({
             background: '#221515',
             border: '1px solid #451a1a',
             color: '#f87171',
+            flexShrink: 0,
           }}
         >
           <Trash2 size={11} />

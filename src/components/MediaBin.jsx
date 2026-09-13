@@ -11,6 +11,9 @@ import {
   Video,
   FileVideo,
   Target,
+  Edit2,
+  Check,
+  X,
 } from 'lucide-react';
 import { formatSecondsOnly, FILTER_PRESETS } from '../types/defaults';
 
@@ -24,10 +27,13 @@ export function MediaBin({
   onApplyFilterPreset,
   onAddTrack,
   selectedClip,
+  onRenameMediaAsset,
 }) {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'blur' | 'text' | 'filters'
   const [hoveredScrubAssetId, setHoveredScrubAssetId] = useState(null);
   const [hoverScrubPct, setHoverScrubPct] = useState(0);
+  const [editingAssetId, setEditingAssetId] = useState(null);
+  const [editingName, setEditingName] = useState('');
 
   const videoTracks = tracks.filter((t) => t.type === 'video');
   const audioTracks = tracks.filter((t) => t.type === 'audio');
@@ -242,16 +248,89 @@ export function MediaBin({
 
                       {/* Info & Multi-Layer Add Options */}
                       <div style={{ padding: '5px 7px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <span style={{
-                          fontSize: 11,
-                          fontWeight: 500,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          color: '#cbd5e1',
-                        }} title={asset.name}>
-                          {asset.name}
-                        </span>
+                        {editingAssetId === asset.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  onRenameMediaAsset && onRenameMediaAsset(asset.id, editingName);
+                                  setEditingAssetId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingAssetId(null);
+                                }
+                              }}
+                              autoFocus
+                              style={{
+                                flex: 1,
+                                background: '#121216',
+                                border: '1px solid #3b82f6',
+                                color: '#ffffff',
+                                fontSize: 10,
+                                padding: '2px 4px',
+                                borderRadius: 2,
+                                outline: 'none',
+                              }}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRenameMediaAsset && onRenameMediaAsset(asset.id, editingName);
+                                setEditingAssetId(null);
+                              }}
+                              style={{ color: '#34d399', padding: 2 }}
+                              title="Save Name (Enter)"
+                            >
+                              <Check size={11} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAssetId(null);
+                              }}
+                              style={{ color: '#94a3b8', padding: 2 }}
+                              title="Cancel (Esc)"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                color: '#cbd5e1',
+                                flex: 1,
+                                cursor: 'text',
+                              }}
+                              title={`Double click to rename: ${asset.name}`}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAssetId(asset.id);
+                                setEditingName(asset.name);
+                              }}
+                            >
+                              {asset.name}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingAssetId(asset.id);
+                                setEditingName(asset.name);
+                              }}
+                              style={{ color: '#64748b', padding: 2, opacity: 0.7 }}
+                              title="Rename Asset in Editor"
+                            >
+                              <Edit2 size={10} />
+                            </button>
+                          </div>
+                        )}
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center', justifyContent: 'flex-end' }}>
                           {asset.type !== 'audio' ? (
