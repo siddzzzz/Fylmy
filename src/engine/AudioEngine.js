@@ -56,7 +56,10 @@ export class AudioEngine {
       }
 
       const effectiveGain = isMuted ? 0 : Math.max(0, Math.min(1, trackVolume * clipVolume));
-      gain.gain.setValueAtTime(effectiveGain, this.audioCtx.currentTime);
+      if (gain._lastGain === undefined || Math.abs(gain._lastGain - effectiveGain) > 0.005) {
+        gain.gain.setValueAtTime(effectiveGain, this.audioCtx.currentTime);
+        gain._lastGain = effectiveGain;
+      }
     } catch (e) {
       // MediaElementSource may already be attached or element not yet ready
       // Safe fallback to direct element volume

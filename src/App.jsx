@@ -140,8 +140,9 @@ export default function App() {
     }
   }, [history, historyIndex]);
 
-  // Setup media elements for any new assets
+  // Setup media elements for any new assets & clips (ensures independent decode pipeline per clip)
   useEffect(() => {
+    // 1. Maintain asset-level fallback elements
     mediaAssets.forEach((asset) => {
       if (!mediaElementsRef.current.has(asset.id)) {
         if (asset.type === 'video') {
@@ -164,9 +165,39 @@ export default function App() {
         }
       }
     });
-  }, [mediaAssets]);
+
+    // 2. Instantiate dedicated media elements per timeline clip (prevents multi-clip/multi-track collision)
+    tracks.forEach((track) => {
+      track.clips.forEach((clip) => {
+        if (clip.assetId && !mediaElementsRef.current.has(clip.id)) {
+          const asset = mediaAssets.find((a) => a.id === clip.assetId);
+          if (asset) {
+            if (asset.type === 'video') {
+              const vid = document.createElement('video');
+              vid.src = asset.url;
+              vid.crossOrigin = 'anonymous';
+              vid.muted = false;
+              vid.playsInline = true;
+              vid.preload = 'auto';
+              mediaElementsRef.current.set(clip.id, vid);
+            } else if (asset.type === 'audio') {
+              const aud = document.createElement('audio');
+              aud.src = asset.url;
+              aud.preload = 'auto';
+              mediaElementsRef.current.set(clip.id, aud);
+            } else if (asset.type === 'image') {
+              const img = new Image();
+              img.src = asset.url;
+              mediaElementsRef.current.set(clip.id, img);
+            }
+          }
+        }
+      });
+    });
+  }, [mediaAssets, tracks]);
 
   const currentTimeRef = useRef(currentTime);
+  const lastUiTimeUpdateRef = useRef(0);
   useEffect(() => {
     currentTimeRef.current = currentTime;
   }, [currentTime]);
@@ -189,7 +220,7 @@ export default function App() {
   const seekAllMedia = useCallback((targetTime, playing) => {
     for (const track of tracks) {
       for (const clip of track.clips) {
-        const mediaEl = mediaElementsRef.current.get(clip.assetId);
+        const mediaEl = mediaElementsRef.current.get(clip.id) || mediaElementsRef.current.get(clip.assetId);
         if (!mediaEl) continue;
 
         const isClipActive = targetTime >= clip.start && targetTime < clip.start + clip.duration;
@@ -254,16 +285,19 @@ export default function App() {
       const deltaSec = (now - lastTimeRef.current) / 1000;
       lastTimeRef.current = now;
 
-      // Find primary active video or audio element to lock hardware decoding clock
+      // High precision monotonic delta progression
+      let nextTime = currentTimeRef.current + deltaSec;
+
+      // Find primary active video/audio element to maintain audio-video lock without jitter
       let masterEl = null;
       let masterClip = null;
 
       for (const track of tracks) {
         if (track.muted) continue;
         for (const clip of track.clips) {
-          const el = mediaElementsRef.current.get(clip.assetId);
+          const el = mediaElementsRef.current.get(clip.id) || mediaElementsRef.current.get(clip.assetId);
           if (el instanceof HTMLVideoElement && !el.paused && el.readyState >= 2) {
-            const isInside = currentTimeRef.current >= clip.start && currentTimeRef.current < clip.start + clip.duration;
+            const isInside = nextTime >= clip.start && nextTime < clip.start + clip.duration;
             if (isInside) {
               masterEl = el;
               masterClip = clip;
@@ -274,17 +308,17 @@ export default function App() {
         if (masterEl) break;
       }
 
-      let nextTime = currentTimeRef.current;
       if (masterEl && masterClip) {
-        // Direct sync with hardware decoded video time (100% smooth 60fps, zero jitter)
-        const calcTime = masterClip.start + (masterEl.currentTime - (masterClip.offset || 0)) / (masterClip.speed || 1);
-        if (!isNaN(calcTime) && calcTime >= 0) {
-          nextTime = calcTime;
-        } else {
-          nextTime = currentTimeRef.current + deltaSec;
+        // Direct sync with hardware decoded video time with soft low-pass filter (zero stutter / zero jumping)
+        const videoClockTime = masterClip.start + (masterEl.currentTime - (masterClip.offset || 0)) / (masterClip.speed || 1);
+        if (!isNaN(videoClockTime) && videoClockTime >= 0) {
+          const drift = videoClockTime - nextTime;
+          if (Math.abs(drift) > 0.3) {
+            nextTime = videoClockTime;
+          } else if (Math.abs(drift) > 0.03) {
+            nextTime += drift * 0.12;
+          }
         }
-      } else {
-        nextTime = currentTimeRef.current + deltaSec;
       }
 
       // Check sequence boundaries
@@ -300,7 +334,7 @@ export default function App() {
       // Manage clip transitions and real-time dynamic volume automation curve
       for (const track of tracks) {
         for (const clip of track.clips) {
-          const mediaEl = mediaElementsRef.current.get(clip.assetId);
+          const mediaEl = mediaElementsRef.current.get(clip.id) || mediaElementsRef.current.get(clip.assetId);
           if (!mediaEl || !(mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) continue;
 
           const isClipActive = nextTime >= clip.start && nextTime < clip.start + clip.duration;
@@ -321,11 +355,12 @@ export default function App() {
             }
 
             if (mediaEl.paused) {
+              mediaEl.playbackRate = clip.speed || 1;
               mediaEl.currentTime = Math.max(0, desiredMediaTime);
               mediaEl.play().catch(() => {});
             } else if (mediaEl !== masterEl) {
-              // Secondary stream (audio/overlay): only re-sync on significant drift (> 350ms)
-              if (Math.abs(mediaEl.currentTime - desiredMediaTime) > 0.35) {
+              // Secondary stream (audio/overlay): only re-sync on significant drift (> 250ms)
+              if (Math.abs(mediaEl.currentTime - desiredMediaTime) > 0.25) {
                 mediaEl.currentTime = Math.max(0, desiredMediaTime);
               }
             }
@@ -339,7 +374,12 @@ export default function App() {
 
       currentTimeRef.current = nextTime;
       renderFrame(nextTime);
-      setCurrentTime(nextTime);
+
+      // Throttle React state updates to ~30fps to avoid virtual DOM thrashing during 60fps canvas rendering
+      if (now - lastUiTimeUpdateRef.current >= 32 || nextTime >= totalDuration) {
+        lastUiTimeUpdateRef.current = now;
+        setCurrentTime(nextTime);
+      }
 
       animId = requestAnimationFrame(tick);
     };

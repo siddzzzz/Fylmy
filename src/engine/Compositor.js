@@ -212,7 +212,7 @@ export class Compositor {
     // Only apply Frosted Mirror Background on base track if aspect ratios differ
     if (isBaseTrack && transform.mirrorBlurBg && Math.abs(mediaAspect - canvasAspect) > 0.05 && transform.fitMode === 'contain') {
       ctx.save();
-      ctx.filter = previewMode ? 'blur(12px) brightness(50%)' : 'blur(24px) brightness(50%)';
+      ctx.filter = previewMode ? 'blur(6px) brightness(50%)' : 'blur(24px) brightness(50%)';
       let bgW = canvasWidth;
       let bgH = canvasWidth / mediaAspect;
       if (bgH < canvasHeight) {
