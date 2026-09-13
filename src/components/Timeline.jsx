@@ -283,11 +283,48 @@ export function Timeline({
 
   const timelineWidth = Math.max(1400, (duration + 8) * pxPerSecond);
 
-  const rulerTicks = [];
-  const stepSeconds = pxPerSecond > 80 ? 1 : pxPerSecond > 35 ? 2 : 5;
-  for (let s = 0; s <= duration + 8; s += stepSeconds) {
-    rulerTicks.push(s);
-  }
+  // Frame-accurate and sub-second ruler ticks based on zoom level
+  const rulerTicks = useMemo(() => {
+    const ticks = [];
+    if (pxPerSecond >= 350) {
+      // High frame-level zoom: Show 1/10s (3 frames) sub-second markings
+      const step = 0.1;
+      for (let s = 0; s <= duration + 4; s += step) {
+        const isWhole = Math.abs(Math.round(s) - s) < 0.001;
+        const isHalf = Math.abs(Math.round(s * 2) - s * 2) < 0.001;
+        ticks.push({
+          time: Math.round(s * 100) / 100,
+          label: isWhole ? `${Math.round(s)}s` : isHalf ? `${s.toFixed(1)}s` : `${Math.round((s % 1) * 30)}f`,
+          isMajor: isWhole,
+          isMinor: !isWhole && !isHalf,
+        });
+      }
+    } else if (pxPerSecond >= 140) {
+      // 0.5s ticks
+      const step = 0.5;
+      for (let s = 0; s <= duration + 4; s += step) {
+        const isWhole = Math.abs(Math.round(s) - s) < 0.001;
+        ticks.push({
+          time: Math.round(s * 10) / 10,
+          label: isWhole ? `${Math.round(s)}s` : `${s.toFixed(1)}s`,
+          isMajor: isWhole,
+          isMinor: false,
+        });
+      }
+    } else {
+      // Standard seconds step
+      const step = pxPerSecond > 65 ? 1 : pxPerSecond > 30 ? 2 : 5;
+      for (let s = 0; s <= duration + 8; s += step) {
+        ticks.push({
+          time: s,
+          label: `${s}s`,
+          isMajor: true,
+          isMinor: false,
+        });
+      }
+    }
+    return ticks;
+  }, [duration, pxPerSecond]);
 
   const videoTrackCount = tracks.filter((t) => t.type === 'video').length;
   const audioTrackCount = tracks.filter((t) => t.type === 'audio').length;
@@ -666,10 +703,10 @@ export function Timeline({
 
           <div style={{ width: 1, height: 16, background: '#25252e' }} />
 
-          {/* Timeline Zoom */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          {/* Timeline Zoom with Frame-Level Capability */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button
-              onClick={() => setPxPerSecond(Math.max(15, pxPerSecond - 10))}
+              onClick={() => setPxPerSecond(Math.max(15, pxPerSecond - 25))}
               style={{ color: '#71717a', padding: 3 }}
               title="Zoom Out"
             >
@@ -678,17 +715,37 @@ export function Timeline({
             <input
               type="range"
               min="15"
-              max="150"
+              max="500"
               value={pxPerSecond}
               onChange={(e) => setPxPerSecond(parseInt(e.target.value))}
-              style={{ width: 80 }}
+              style={{ width: 85 }}
+              title={`Zoom: ${pxPerSecond} px/sec ${pxPerSecond >= 300 ? '(Frame-by-Frame Mode)' : ''}`}
             />
             <button
-              onClick={() => setPxPerSecond(Math.min(150, pxPerSecond + 10))}
+              onClick={() => setPxPerSecond(Math.min(500, pxPerSecond + 25))}
               style={{ color: '#71717a', padding: 3 }}
               title="Zoom In"
             >
               <ZoomIn size={13} />
+            </button>
+
+            {/* 1-Click Frame Precision Toggle */}
+            <button
+              onClick={() => setPxPerSecond(pxPerSecond >= 350 ? 55 : 400)}
+              title={pxPerSecond >= 350 ? "Switch to Normal Zoom (55 px/sec)" : "Zoom into Frame-by-Frame Precision (400 px/sec)"}
+              style={{
+                padding: '3px 6px',
+                borderRadius: 3,
+                fontSize: 10,
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                background: pxPerSecond >= 350 ? '#3b2010' : '#18181e',
+                border: pxPerSecond >= 350 ? '1px solid #f59e0b' : '1px solid #282834',
+                color: pxPerSecond >= 350 ? '#fbbf24' : '#94a3b8',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {pxPerSecond >= 350 ? '1 Frame' : 'Frames'}
             </button>
           </div>
 
@@ -768,24 +825,24 @@ export function Timeline({
             position: 'relative',
           }}>
             {/* Ruler Ticks */}
-            {rulerTicks.map((sec) => (
+            {rulerTicks.map((tick, idx) => (
               <div
-                key={sec}
+                key={idx}
                 style={{
                   position: 'absolute',
-                  left: sec * pxPerSecond,
-                  top: 0,
+                  left: tick.time * pxPerSecond,
+                  top: tick.isMinor ? 14 : 0,
                   bottom: 0,
-                  borderLeft: '1px solid #282832',
+                  borderLeft: tick.isMajor ? '1px solid #3f3f4e' : tick.isMinor ? '1px solid #202028' : '1px solid #2c2c36',
                   paddingLeft: 3,
-                  fontSize: 9,
+                  fontSize: tick.isMinor ? 8 : 9,
                   fontFamily: 'var(--font-mono)',
-                  color: '#64748b',
-                  lineHeight: '28px',
+                  color: tick.isMajor ? '#94a3b8' : tick.isMinor ? '#52525b' : '#64748b',
+                  lineHeight: tick.isMinor ? '14px' : '26px',
                   pointerEvents: 'none',
                 }}
               >
-                {sec}s
+                {!tick.isMinor ? tick.label : ''}
               </div>
             ))}
 
@@ -1109,6 +1166,9 @@ export function Timeline({
                             const frames = asset?.frames || [];
                             const thumbUrl = asset?.thumbnailUrl;
 
+                            const tileWidth = pxPerSecond >= 350 ? Math.max(70, pxPerSecond * 0.5) : Math.max(48, Math.min(80, pxPerSecond * 0.8));
+                            const isFrameZoom = pxPerSecond >= 350;
+
                             if (frames.length > 0) {
                               return (
                                 <div style={{
@@ -1116,7 +1176,7 @@ export function Timeline({
                                   inset: 0,
                                   display: 'flex',
                                   overflow: 'hidden',
-                                  opacity: 0.38,
+                                  opacity: isFrameZoom ? 0.6 : 0.38,
                                   pointerEvents: 'none',
                                   zIndex: 1,
                                 }}>
@@ -1125,14 +1185,32 @@ export function Timeline({
                                       key={idx}
                                       style={{
                                         height: '100%',
-                                        width: 56,
-                                        minWidth: 56,
+                                        width: tileWidth,
+                                        minWidth: tileWidth,
                                         backgroundImage: `url(${fr.dataUrl})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
-                                        borderRight: '1px solid rgba(0,0,0,0.4)',
+                                        borderRight: '1px solid rgba(0,0,0,0.5)',
+                                        position: 'relative',
                                       }}
-                                    />
+                                    >
+                                      {isFrameZoom && (
+                                        <span style={{
+                                          position: 'absolute',
+                                          bottom: 1,
+                                          right: 2,
+                                          fontSize: 8,
+                                          fontFamily: 'var(--font-mono)',
+                                          fontWeight: 700,
+                                          color: '#f8fafc',
+                                          background: 'rgba(0,0,0,0.7)',
+                                          padding: '0 2px',
+                                          borderRadius: 2,
+                                        }}>
+                                          {fr.time ? `${fr.time.toFixed(1)}s` : `#${idx + 1}`}
+                                        </span>
+                                      )}
+                                    </div>
                                   ))}
                                 </div>
                               );
@@ -1143,17 +1221,17 @@ export function Timeline({
                                   inset: 0,
                                   display: 'flex',
                                   overflow: 'hidden',
-                                  opacity: 0.35,
+                                  opacity: isFrameZoom ? 0.55 : 0.35,
                                   pointerEvents: 'none',
                                   zIndex: 1,
                                 }}>
-                                  {Array.from({ length: Math.max(1, Math.ceil(clipWidth / 56)) }).map((_, idx) => (
+                                  {Array.from({ length: Math.max(1, Math.ceil(clipWidth / tileWidth)) }).map((_, idx) => (
                                     <div
                                       key={idx}
                                       style={{
                                         height: '100%',
-                                        width: 56,
-                                        minWidth: 56,
+                                        width: tileWidth,
+                                        minWidth: tileWidth,
                                         backgroundImage: `url(${thumbUrl})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
