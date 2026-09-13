@@ -370,10 +370,10 @@ export function Inspector({
                 ))}
               </div>
 
-              {/* Audio Volume */}
-              <div>
+              {/* Audio Volume & Automation Keyframes */}
+              <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
-                  <span>Volume Gain</span>
+                  <span>Base Volume</span>
                   <span className="val-badge">{Math.round((selectedClip.volume ?? 1) * 100)}%</span>
                 </div>
                 <input
@@ -385,6 +385,127 @@ export function Inspector({
                   onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
                   style={{ width: '100%' }}
                 />
+
+                {/* Volume Keyframe Automation (Filmora/Premiere style) */}
+                <div style={{
+                  marginTop: 10,
+                  padding: '8px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                      Volume Curve Keyframes ({(selectedClip.volumeKeyframes || []).length})
+                    </span>
+                    <button
+                      onClick={() => {
+                        const relTime = Math.max(0, Math.min(selectedClip.duration, (currentTime || 0) - selectedClip.start));
+                        const curKfs = selectedClip.volumeKeyframes || [];
+                        const existingIdx = curKfs.findIndex((k) => Math.abs(k.time - relTime) < 0.1);
+                        let nextKfs;
+                        if (existingIdx >= 0) {
+                          nextKfs = curKfs.map((k, idx) => idx === existingIdx ? { ...k, volume: selectedClip.volume ?? 1 } : k);
+                        } else {
+                          const newKf = {
+                            id: 'vkf-' + Math.random().toString(36).substring(2, 7),
+                            time: Math.round(relTime * 100) / 100,
+                            volume: selectedClip.volume ?? 1,
+                          };
+                          nextKfs = [...curKfs, newKf].sort((a, b) => a.time - b.time);
+                        }
+                        onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                      }}
+                      style={{
+                        padding: '3px 6px',
+                        borderRadius: 3,
+                        background: '#064e3b',
+                        border: '1px solid #059669',
+                        color: '#6ee7b7',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                      title="Add a Volume Keyframe at current Playhead position"
+                    >
+                      <Plus size={10} />
+                      <span>+ Vol Point</span>
+                    </button>
+                  </div>
+
+                  {(selectedClip.volumeKeyframes || []).length === 0 ? (
+                    <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.4 }}>
+                      Control volume in different parts: Move playhead to any point and click <strong style={{ color: '#10b981' }}>+ Vol Point</strong> to automate volume up or down.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 110, overflowY: 'auto' }}>
+                      {(selectedClip.volumeKeyframes || []).map((vkf) => (
+                        <div
+                          key={vkf.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '4px 6px',
+                            background: '#191920',
+                            borderRadius: 3,
+                            border: '1px solid #2e2e3a',
+                            fontSize: 10,
+                          }}
+                        >
+                          <button
+                            onClick={() => onSeek && onSeek(selectedClip.start + vkf.time)}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              color: '#6ee7b7',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                              textAlign: 'left',
+                            }}
+                            title="Jump to Volume Keyframe"
+                          >
+                            {vkf.time.toFixed(2)}s
+                          </button>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1.5"
+                              step="0.05"
+                              value={vkf.volume}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                const nextKfs = (selectedClip.volumeKeyframes || []).map((k) =>
+                                  k.id === vkf.id ? { ...k, volume: val } : k
+                                );
+                                onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                              }}
+                              style={{ width: 55 }}
+                            />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#e2e8f0', minWidth: 32 }}>
+                              {Math.round(vkf.volume * 100)}%
+                            </span>
+                            <button
+                              onClick={() => {
+                                const nextKfs = (selectedClip.volumeKeyframes || []).filter((k) => k.id !== vkf.id);
+                                onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                              }}
+                              style={{ color: '#ef4444', padding: 2 }}
+                              title="Delete Volume Keyframe"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -841,12 +962,12 @@ export function Inspector({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
-                Audio Bus Level
+                Audio Bus Level & Volume Automation
               </div>
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
-                  <span>Gain</span>
+                  <span>Base Gain</span>
                   <span className="val-badge">{Math.round((selectedClip.volume ?? 1) * 100)}%</span>
                 </div>
                 <input
@@ -858,6 +979,127 @@ export function Inspector({
                   onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
                   style={{ width: '100%' }}
                 />
+
+                {/* Volume Keyframe Automation (Filmora style) */}
+                <div style={{
+                  marginTop: 10,
+                  padding: '8px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                      Volume Curve Keyframes ({(selectedClip.volumeKeyframes || []).length})
+                    </span>
+                    <button
+                      onClick={() => {
+                        const relTime = Math.max(0, Math.min(selectedClip.duration, (currentTime || 0) - selectedClip.start));
+                        const curKfs = selectedClip.volumeKeyframes || [];
+                        const existingIdx = curKfs.findIndex((k) => Math.abs(k.time - relTime) < 0.1);
+                        let nextKfs;
+                        if (existingIdx >= 0) {
+                          nextKfs = curKfs.map((k, idx) => idx === existingIdx ? { ...k, volume: selectedClip.volume ?? 1 } : k);
+                        } else {
+                          const newKf = {
+                            id: 'vkf-' + Math.random().toString(36).substring(2, 7),
+                            time: Math.round(relTime * 100) / 100,
+                            volume: selectedClip.volume ?? 1,
+                          };
+                          nextKfs = [...curKfs, newKf].sort((a, b) => a.time - b.time);
+                        }
+                        onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                      }}
+                      style={{
+                        padding: '3px 6px',
+                        borderRadius: 3,
+                        background: '#064e3b',
+                        border: '1px solid #059669',
+                        color: '#6ee7b7',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                      title="Add a Volume Keyframe at current Playhead position"
+                    >
+                      <Plus size={10} />
+                      <span>+ Vol Point</span>
+                    </button>
+                  </div>
+
+                  {(selectedClip.volumeKeyframes || []).length === 0 ? (
+                    <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.4 }}>
+                      Control volume in different parts: Move playhead to any point and click <strong style={{ color: '#10b981' }}>+ Vol Point</strong> to automate volume up or down.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 110, overflowY: 'auto' }}>
+                      {(selectedClip.volumeKeyframes || []).map((vkf) => (
+                        <div
+                          key={vkf.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '4px 6px',
+                            background: '#191920',
+                            borderRadius: 3,
+                            border: '1px solid #2e2e3a',
+                            fontSize: 10,
+                          }}
+                        >
+                          <button
+                            onClick={() => onSeek && onSeek(selectedClip.start + vkf.time)}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              color: '#6ee7b7',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: 0,
+                              textAlign: 'left',
+                            }}
+                            title="Jump to Volume Keyframe"
+                          >
+                            {vkf.time.toFixed(2)}s
+                          </button>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1.5"
+                              step="0.05"
+                              value={vkf.volume}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                const nextKfs = (selectedClip.volumeKeyframes || []).map((k) =>
+                                  k.id === vkf.id ? { ...k, volume: val } : k
+                                );
+                                onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                              }}
+                              style={{ width: 55 }}
+                            />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#e2e8f0', minWidth: 32 }}>
+                              {Math.round(vkf.volume * 100)}%
+                            </span>
+                            <button
+                              onClick={() => {
+                                const nextKfs = (selectedClip.volumeKeyframes || []).filter((k) => k.id !== vkf.id);
+                                onUpdateClip(selectedClip.id, { volumeKeyframes: nextKfs });
+                              }}
+                              style={{ color: '#ef4444', padding: 2 }}
+                              title="Delete Volume Keyframe"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

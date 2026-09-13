@@ -1276,7 +1276,7 @@ export function Timeline({
                                 e.stopPropagation();
                                 onSeek(clip.start + kf.time);
                               }}
-                              title={`Jump to Keyframe at ${(clip.start + kf.time).toFixed(2)}s`}
+                              title={`Jump to Blur Keyframe at ${(clip.start + kf.time).toFixed(2)}s`}
                               style={{
                                 position: 'absolute',
                                 left: `${(kf.time / clip.duration) * 100}%`,
@@ -1288,6 +1288,31 @@ export function Timeline({
                                 border: '1px solid #78350f',
                                 cursor: 'pointer',
                                 zIndex: 10,
+                              }}
+                            />
+                          ))}
+
+                          {/* Volume Keyframe Diamonds (Video & Audio Automation Curves) */}
+                          {(track.type === 'video' || track.type === 'audio') && (clip.volumeKeyframes || []).map((vkf) => (
+                            <div
+                              key={vkf.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSeek(clip.start + vkf.time);
+                              }}
+                              title={`Volume Keyframe at ${(clip.start + vkf.time).toFixed(2)}s: ${Math.round(vkf.volume * 100)}%`}
+                              style={{
+                                position: 'absolute',
+                                left: `${(vkf.time / clip.duration) * 100}%`,
+                                top: `${Math.max(15, Math.min(85, 90 - (vkf.volume / 1.5) * 75))}%`,
+                                transform: 'translate(-50%, -50%) rotate(45deg)',
+                                width: 7,
+                                height: 7,
+                                background: '#10b981',
+                                border: '1px solid #064e3b',
+                                cursor: 'pointer',
+                                zIndex: 12,
+                                boxShadow: '0 0 4px rgba(16, 185, 129, 0.8)',
                               }}
                             />
                           ))}

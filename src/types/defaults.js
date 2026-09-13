@@ -149,3 +149,54 @@ export function formatSecondsOnly(seconds) {
   const ms = Math.floor((seconds % 1) * 10);
   return `${m}:${String(s).padStart(2, '0')}.${ms}`;
 }
+
+/**
+ * Calculates dynamic interpolated volume for a clip at a given relative time,
+ * taking into account base volume, volume keyframes (Filmora / Premiere automation curve),
+ * and audio fade-in / fade-out ramps.
+ */
+export function calculateEffectiveVolume(clip, relativeTime) {
+  if (!clip) return 1;
+  let baseVol = clip.volume !== undefined ? clip.volume : 1;
+
+  // 1. Volume Keyframes Interpolation
+  const keyframes = clip.volumeKeyframes;
+  if (keyframes && keyframes.length > 0) {
+    const sorted = [...keyframes].sort((a, b) => a.time - b.time);
+    if (relativeTime <= sorted[0].time) {
+      baseVol = sorted[0].volume;
+    } else if (relativeTime >= sorted[sorted.length - 1].time) {
+      baseVol = sorted[sorted.length - 1].volume;
+    } else {
+      for (let i = 0; i < sorted.length - 1; i++) {
+        if (relativeTime >= sorted[i].time && relativeTime <= sorted[i + 1].time) {
+          const t1 = sorted[i].time;
+          const t2 = sorted[i + 1].time;
+          const v1 = sorted[i].volume;
+          const v2 = sorted[i + 1].volume;
+          const frac = (relativeTime - t1) / (t2 - t1 || 1);
+          // Smooth Hermite / Cosine curve for studio audio ramp
+          const smoothFrac = 0.5 - 0.5 * Math.cos(frac * Math.PI);
+          baseVol = v1 + (v2 - v1) * smoothFrac;
+          break;
+        }
+      }
+    }
+  }
+
+  // 2. Fade In Ramp
+  let fadeMultiplier = 1;
+  const fadeIn = clip.fadeIn || 0;
+  if (fadeIn > 0 && relativeTime < fadeIn) {
+    fadeMultiplier *= Math.max(0, Math.min(1, relativeTime / fadeIn));
+  }
+
+  // 3. Fade Out Ramp
+  const fadeOut = clip.fadeOut || 0;
+  const remainingTime = clip.duration - relativeTime;
+  if (fadeOut > 0 && remainingTime < fadeOut) {
+    fadeMultiplier *= Math.max(0, Math.min(1, remainingTime / fadeOut));
+  }
+
+  return Math.max(0, Math.min(1.5, baseVol * fadeMultiplier));
+}

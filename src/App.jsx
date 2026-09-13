@@ -13,6 +13,7 @@ import { renderAndExportVideo } from './engine/ExportEngine';
 import {
   ASPECT_RATIOS,
   DEFAULT_TRACKS,
+  calculateEffectiveVolume,
 } from './types/defaults';
 import {
   generateDynamicDemoVideo,
@@ -197,14 +198,16 @@ export default function App() {
         const isClipActive = targetTime >= clip.start && targetTime < clip.start + clip.duration;
 
         if (isClipActive) {
-          const desiredMediaTime = (targetTime - clip.start) * (clip.speed || 1) + (clip.offset || 0);
+          const relTime = targetTime - clip.start;
+          const desiredMediaTime = relTime * (clip.speed || 1) + (clip.offset || 0);
+          const effectiveClipVol = calculateEffectiveVolume(clip, relTime);
 
           // Connect Web Audio
           if (audioEngineRef.current && (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) {
             audioEngineRef.current.connectMediaElement(
               mediaEl,
               track.volume,
-              clip.volume,
+              effectiveClipVol,
               track.muted
             );
           }
@@ -297,7 +300,7 @@ export default function App() {
         return;
       }
 
-      // Manage clip transitions (starting new clips or stopping expired clips)
+      // Manage clip transitions and real-time dynamic volume automation curve
       for (const track of tracks) {
         for (const clip of track.clips) {
           const mediaEl = mediaElementsRef.current.get(clip.assetId);
@@ -306,7 +309,19 @@ export default function App() {
           const isClipActive = nextTime >= clip.start && nextTime < clip.start + clip.duration;
 
           if (isClipActive) {
-            const desiredMediaTime = (nextTime - clip.start) * (clip.speed || 1) + (clip.offset || 0);
+            const relTime = nextTime - clip.start;
+            const desiredMediaTime = relTime * (clip.speed || 1) + (clip.offset || 0);
+
+            // Dynamically modulate audio volume (Filmora keyframes & fades curve)
+            if (audioEngineRef.current) {
+              const effectiveVol = calculateEffectiveVolume(clip, relTime);
+              audioEngineRef.current.connectMediaElement(
+                mediaEl,
+                track.volume,
+                effectiveVol,
+                track.muted
+              );
+            }
 
             if (mediaEl.paused) {
               mediaEl.currentTime = Math.max(0, desiredMediaTime);
