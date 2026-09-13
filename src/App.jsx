@@ -16,8 +16,6 @@ import {
   calculateEffectiveVolume,
 } from './types/defaults';
 import {
-  generateDynamicDemoVideo,
-  generateBgmAudio,
   processImportedFile,
 } from './utils/sampleMedia';
 
@@ -44,7 +42,6 @@ export default function App() {
   // --- Modals State ---
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
-  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
 
   // --- Undo / Redo History ---
   const [history, setHistory] = useState([]);
@@ -875,34 +872,6 @@ export default function App() {
     }
   };
 
-  // Generate demo dynamic clip
-  const handleAddDemoClip = async () => {
-    setIsGeneratingDemo(true);
-    try {
-      const asset = await generateDynamicDemoVideo('Moving Target (Sports Car)', 12);
-      setMediaAssets((prev) => [...prev, asset]);
-      handleAddClipToTimeline(asset);
-    } catch (err) {
-      console.error('Demo video generation failed:', err);
-    } finally {
-      setIsGeneratingDemo(false);
-    }
-  };
-
-  // Generate demo audio beat
-  const handleAddDemoAudio = async () => {
-    setIsGeneratingDemo(true);
-    try {
-      const asset = await generateBgmAudio('Synth Pulse Beat', 12);
-      setMediaAssets((prev) => [...prev, asset]);
-      handleAddClipToTimeline(asset);
-    } catch (err) {
-      console.error('Demo audio generation failed:', err);
-    } finally {
-      setIsGeneratingDemo(false);
-    }
-  };
-
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -1013,15 +982,12 @@ export default function App() {
           mediaAssets={mediaAssets}
           tracks={tracks}
           onImportFiles={handleImportFiles}
-          onAddDemoClip={handleAddDemoClip}
-          onAddDemoAudio={handleAddDemoAudio}
           onAddClipToTimeline={handleAddClipToTimeline}
           onAddBlurToTimeline={handleAddBlurToTimeline}
           onAddTextToTimeline={handleAddTextToTimeline}
           onApplyFilterPreset={handleApplyFilterPreset}
           onAddTrack={handleAddTrack}
           selectedClip={selectedClip}
-          isGeneratingDemo={isGeneratingDemo}
         />
 
         <PreviewPlayer
@@ -1079,8 +1045,6 @@ export default function App() {
         onAddClipToTimeline={handleAddClipToTimeline}
         onImportAndAddClip={handleImportAndAddClip}
         onImportFiles={handleImportFiles}
-        onAddDemoClip={handleAddDemoClip}
-        onAddDemoAudio={handleAddDemoAudio}
         mediaAssets={mediaAssets}
         timelineHeight={timelineHeight}
         setTimelineHeight={setTimelineHeight}

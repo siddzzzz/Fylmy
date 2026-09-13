@@ -49,8 +49,6 @@ export function Timeline({
   onAddClipToTimeline,
   onImportAndAddClip,
   onImportFiles,
-  onAddDemoClip,
-  onAddDemoAudio,
   pxPerSecond = 55,
   setPxPerSecond,
   timelineHeight = 290,
@@ -1390,43 +1388,23 @@ export function Timeline({
                   Drag footage from the Media Pool or drop files directly from your computer to start editing.
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  {onAddDemoClip && (
-                    <button
-                      onClick={onAddDemoClip}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: 3,
-                        background: '#1d3257',
-                        border: '1px solid #2b5292',
-                        color: '#93c5fd',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 5,
-                      }}
-                    >
-                      <FileVideo size={12} color="#60a5fa" />
-                      <span>+ Load Sample Video</span>
-                    </button>
-                  )}
                   <label
                     style={{
-                      padding: '5px 12px',
+                      padding: '6px 14px',
                       borderRadius: 3,
-                      background: '#22222a',
-                      border: '1px solid #363644',
-                      color: '#f1f5f9',
+                      background: '#1e2436',
+                      border: '1px solid #3b5284',
+                      color: '#93c5fd',
                       fontSize: 11,
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 5,
+                      gap: 6,
                     }}
                   >
-                    <FolderOpen size={12} color="#94a3b8" />
-                    <span>Import Files</span>
+                    <FolderOpen size={13} color="#60a5fa" />
+                    <span>Import Footage / Audio</span>
                     <input
                       type="file"
                       multiple

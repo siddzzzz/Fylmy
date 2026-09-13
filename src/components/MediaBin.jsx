@@ -18,15 +18,12 @@ export function MediaBin({
   mediaAssets,
   tracks = [],
   onImportFiles,
-  onAddDemoClip,
-  onAddDemoAudio,
   onAddClipToTimeline,
   onAddBlurToTimeline,
   onAddTextToTimeline,
   onApplyFilterPreset,
   onAddTrack,
   selectedClip,
-  isGeneratingDemo,
 }) {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'blur' | 'text' | 'filters'
   const [hoveredScrubAssetId, setHoveredScrubAssetId] = useState(null);
@@ -126,56 +123,6 @@ export function MediaBin({
               />
             </label>
 
-            {/* Test Clips */}
-            <div style={{
-              background: '#16161a',
-              border: '1px solid #272730',
-              borderRadius: 4,
-              padding: 9,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 7,
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                Reference Test Footage
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={onAddDemoClip}
-                  disabled={isGeneratingDemo}
-                  style={{
-                    flex: 1,
-                    padding: '5px 7px',
-                    borderRadius: 3,
-                    background: '#22222a',
-                    border: '1px solid #333340',
-                    color: '#e2e8f0',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  <FileVideo size={12} color="#60a5fa" />
-                  <span>{isGeneratingDemo ? 'Generating...' : 'Motion Target (1080p)'}</span>
-                </button>
-                <button
-                  onClick={onAddDemoAudio}
-                  disabled={isGeneratingDemo}
-                  style={{
-                    padding: '5px 7px',
-                    borderRadius: 3,
-                    background: '#22222a',
-                    border: '1px solid #333340',
-                    color: '#34d399',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                >
-                  <Music size={12} />
-                  <span>Audio Stems</span>
-                </button>
-              </div>
-            </div>
-
             {/* Asset List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -184,7 +131,7 @@ export function MediaBin({
 
               {mediaAssets.length === 0 ? (
                 <div style={{
-                  padding: 24,
+                  padding: 28,
                   textAlign: 'center',
                   background: '#131317',
                   border: '1px solid #25252e',
@@ -194,7 +141,7 @@ export function MediaBin({
                   lineHeight: 1.5,
                 }}>
                   Media pool is empty.<br />
-                  Import files or load Reference Footage.
+                  Click <strong style={{ color: '#94a3b8' }}>Import Footage / Audio</strong> above to add your videos.
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>
