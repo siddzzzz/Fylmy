@@ -19,6 +19,8 @@ export function Header({
   setProjectName,
   aspectRatio,
   setAspectRatio,
+  customResolution = { width: 1280, height: 720 },
+  setCustomResolution,
   durationMode = 'auto',
   setDurationMode,
   customDuration = 30,
@@ -34,7 +36,12 @@ export function Header({
 }) {
   const [aspectDropdownOpen, setAspectDropdownOpen] = useState(false);
   const [durationDropdownOpen, setDurationDropdownOpen] = useState(false);
-  const currentAspect = ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['16:9'];
+  const currentAspect = aspectRatio === 'custom'
+    ? {
+        name: `Custom (${customResolution.width}×${customResolution.height})`,
+        label: `${customResolution.width} × ${customResolution.height}`,
+      }
+    : (ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['16:9']);
 
   const getAspectIcon = (ratioKey) => {
     switch (ratioKey) {
@@ -43,6 +50,7 @@ export function Header({
       case '1:1': return <Square size={14} />;
       case '4:5': return <Layout size={14} />;
       case '21:9': return <Film size={14} />;
+      case 'custom': return <SlidersHorizontal size={14} />;
       default: return <Monitor size={14} />;
     }
   };
@@ -217,6 +225,139 @@ export function Header({
                     </div>
                   </button>
                 ))}
+
+                {/* Custom Resolution Option */}
+                <div style={{ borderTop: '1px solid #282834', marginTop: 4, paddingTop: 4 }}>
+                  <button
+                    onClick={() => {
+                      setAspectRatio('custom');
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      padding: '7px 8px',
+                      borderRadius: 4,
+                      textAlign: 'left',
+                      background: aspectRatio === 'custom' ? '#232734' : 'transparent',
+                      color: aspectRatio === 'custom' ? '#60a5fa' : 'var(--text-primary)',
+                      border: aspectRatio === 'custom' ? '1px solid #2e4374' : '1px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (aspectRatio !== 'custom') e.currentTarget.style.background = '#1f1f26';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (aspectRatio !== 'custom') e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <SlidersHorizontal size={14} color={aspectRatio === 'custom' ? '#60a5fa' : '#94a3b8'} />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>Custom Resolution</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Any width × height (e.g. 1280×720, 2K, UltraWide)</span>
+                    </div>
+                  </button>
+
+                  {/* Custom Width & Height Inputs */}
+                  {aspectRatio === 'custom' && (
+                    <div style={{
+                      padding: '8px',
+                      background: '#121216',
+                      borderRadius: 4,
+                      marginTop: 4,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Width (px)</span>
+                          <input
+                            type="number"
+                            min="100"
+                            max="7680"
+                            step="2"
+                            value={customResolution.width}
+                            onChange={(e) => {
+                              const val = Math.max(100, parseInt(e.target.value) || 100);
+                              setCustomResolution && setCustomResolution((prev) => ({ ...prev, width: val }));
+                            }}
+                            style={{
+                              width: '100%',
+                              background: '#18181e',
+                              border: '1px solid #383848',
+                              color: '#f8fafc',
+                              padding: '4px 6px',
+                              borderRadius: 3,
+                              fontSize: 12,
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                        <span style={{ color: '#64748b', fontSize: 14, fontWeight: 700, marginTop: 14 }}>×</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 10, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Height (px)</span>
+                          <input
+                            type="number"
+                            min="100"
+                            max="4320"
+                            step="2"
+                            value={customResolution.height}
+                            onChange={(e) => {
+                              const val = Math.max(100, parseInt(e.target.value) || 100);
+                              setCustomResolution && setCustomResolution((prev) => ({ ...prev, height: val }));
+                            }}
+                            style={{
+                              width: '100%',
+                              background: '#18181e',
+                              border: '1px solid #383848',
+                              color: '#f8fafc',
+                              padding: '4px 6px',
+                              borderRadius: 3,
+                              fontSize: 12,
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 700,
+                              outline: 'none',
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick Custom Resolution Presets */}
+                      <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
+                        {[
+                          { label: '720p', w: 1280, h: 720 },
+                          { label: '1080p', w: 1920, h: 1080 },
+                          { label: '2K QHD', w: 2560, h: 1440 },
+                          { label: '4K UHD', w: 3840, h: 2160 },
+                          { label: 'IG Story', w: 1080, h: 1920 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            onClick={() => {
+                              setCustomResolution && setCustomResolution({ width: preset.w, height: preset.h });
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '3px 0',
+                              borderRadius: 3,
+                              background: customResolution.width === preset.w && customResolution.height === preset.h ? '#2b3954' : '#1e1e26',
+                              border: customResolution.width === preset.w && customResolution.height === preset.h ? '1px solid #3b82f6' : '1px solid #2e2e3a',
+                              color: customResolution.width === preset.w && customResolution.height === preset.h ? '#93c5fd' : '#94a3b8',
+                              fontSize: 10,
+                              fontWeight: 600,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -24,6 +24,7 @@ export default function App() {
   // --- Project State ---
   const [projectName, setProjectName] = useState('Untitled Sequence 1');
   const [aspectRatio, setAspectRatio] = useState('16:9');
+  const [customResolution, setCustomResolution] = useState({ width: 1280, height: 720 });
   const [tracks, setTracks] = useState(DEFAULT_TRACKS);
   const [mediaAssets, setMediaAssets] = useState([]);
   const [currentTime, setCurrentTime] = useState(0);
@@ -56,8 +57,22 @@ export default function App() {
   const animFrameRef = useRef(null);
   const lastTimeRef = useRef(null);
 
-  // Aspect ratio configuration
-  const currentAspectConfig = ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['16:9'];
+  // Aspect ratio configuration (preset or custom resolution)
+  const currentAspectConfig = useMemo(() => {
+    if (aspectRatio === 'custom') {
+      const w = Math.max(100, Math.min(7680, customResolution.width || 1920));
+      const h = Math.max(100, Math.min(4320, customResolution.height || 1080));
+      return {
+        name: `Custom (${w} × ${h})`,
+        label: `${w} × ${h} (User Defined)`,
+        width: w,
+        height: h,
+        ratio: w / h,
+        icon: 'SlidersHorizontal',
+      };
+    }
+    return ASPECT_RATIOS[aspectRatio] || ASPECT_RATIOS['16:9'];
+  }, [aspectRatio, customResolution]);
 
   // Initialize Engines
   useEffect(() => {
@@ -961,6 +976,8 @@ export default function App() {
         setProjectName={setProjectName}
         aspectRatio={aspectRatio}
         setAspectRatio={setAspectRatio}
+        customResolution={customResolution}
+        setCustomResolution={setCustomResolution}
         durationMode={durationMode}
         setDurationMode={setDurationMode}
         customDuration={customDuration}
