@@ -36,6 +36,9 @@ export default function App() {
   const [durationMode, setDurationMode] = useState('auto'); // 'auto' | 'custom'
   const [customDuration, setCustomDuration] = useState(30);
 
+  // --- Timeline Height (Vertically Resizable / Expandable) ---
+  const [timelineHeight, setTimelineHeight] = useState(290);
+
   // --- Modals State ---
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
@@ -1046,6 +1049,8 @@ export default function App() {
         onImportFiles={handleImportFiles}
         onAddDemoClip={handleAddDemoClip}
         onAddDemoAudio={handleAddDemoAudio}
+        timelineHeight={timelineHeight}
+        setTimelineHeight={setTimelineHeight}
         pxPerSecond={pxPerSecond}
         setPxPerSecond={setPxPerSecond}
       />

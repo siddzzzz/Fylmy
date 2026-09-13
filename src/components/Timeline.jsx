@@ -19,6 +19,9 @@ import {
   Upload,
   FileVideo,
   FolderOpen,
+  Maximize2,
+  Minimize2,
+  GripHorizontal,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -50,6 +53,8 @@ export function Timeline({
   onAddDemoAudio,
   pxPerSecond = 55,
   setPxPerSecond,
+  timelineHeight = 290,
+  setTimelineHeight,
 }) {
   const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
@@ -57,11 +62,42 @@ export function Timeline({
   const trackLaneRefs = useRef(new Map());
 
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isResizingHeight, setIsResizingHeight] = useState(false);
   const [dragInfo, setDragInfo] = useState(null); // { mode, clipId, sourceTrackId, targetTrackId, startX, startY, initStart, initDuration, initOffset, clipType }
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [durationPopoverOpen, setDurationPopoverOpen] = useState(false);
   const [dropTargetTrackId, setDropTargetTrackId] = useState(null);
   const [dropTargetTime, setDropTargetTime] = useState(0);
+
+  // Start vertical height resize dragging
+  const startVerticalResize = (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setIsResizingHeight(true);
+    const startY = e.clientY;
+    const startH = timelineHeight;
+
+    const onMove = (moveEv) => {
+      const deltaY = startY - moveEv.clientY; // dragging up increases height
+      const newHeight = Math.max(180, Math.min(window.innerHeight * 0.75, startH + deltaY));
+      if (setTimelineHeight) {
+        setTimelineHeight(Math.round(newHeight));
+      }
+    };
+
+    const onUp = () => {
+      setIsResizingHeight(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
 
   // Collect all cut points for magnetic snapping
   const snapTargets = useMemo(() => {
@@ -305,14 +341,45 @@ export function Timeline({
 
   return (
     <div style={{
-      height: 290,
-      minHeight: 290,
+      height: timelineHeight,
+      minHeight: 180,
+      maxHeight: '75vh',
       background: 'var(--bg-timeline)',
       borderTop: '1px solid var(--border-subtle)',
       display: 'flex',
       flexDirection: 'column',
       zIndex: 20,
+      position: 'relative',
+      transition: isResizingHeight ? 'none' : 'height 0.15s ease-out',
     }}>
+      {/* Interactive Top Splitter / Resize Drag Handle */}
+      <div
+        onMouseDown={startVerticalResize}
+        style={{
+          position: 'absolute',
+          top: -4,
+          left: 0,
+          right: 0,
+          height: 8,
+          cursor: 'row-resize',
+          zIndex: 40,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: isResizingHeight ? 'rgba(59, 130, 246, 0.4)' : 'transparent',
+          transition: 'background 0.15s',
+        }}
+        title="Drag up or down to resize Timeline height"
+      >
+        <div style={{
+          width: 44,
+          height: 3,
+          borderRadius: 2,
+          background: isResizingHeight ? '#60a5fa' : '#3f3f4e',
+          transition: 'background 0.15s',
+        }} />
+      </div>
+
       {/* 1. Timeline Workstation Toolbar */}
       <div style={{
         height: 36,
@@ -623,6 +690,32 @@ export function Timeline({
               <ZoomIn size={13} />
             </button>
           </div>
+
+          <div style={{ width: 1, height: 16, background: '#25252e' }} />
+
+          {/* 1-Click Expand / Height Toggle Button */}
+          {setTimelineHeight && (
+            <button
+              onClick={() => setTimelineHeight(timelineHeight < 400 ? 480 : 290)}
+              title={timelineHeight < 400 ? "Expand Timeline View to see all layers (Click to enlarge)" : "Restore Standard Timeline Height"}
+              style={{
+                padding: '4px 8px',
+                borderRadius: 3,
+                background: timelineHeight >= 400 ? '#1e293b' : '#18181e',
+                border: timelineHeight >= 400 ? '1px solid #3b82f6' : '1px solid #282834',
+                color: timelineHeight >= 400 ? '#93c5fd' : '#94a3b8',
+                fontSize: 11,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {timelineHeight >= 400 ? <Minimize2 size={12} color="#60a5fa" /> : <Maximize2 size={12} color="#94a3b8" />}
+              <span>{timelineHeight >= 400 ? 'Contract' : 'Expand'}</span>
+            </button>
+          )}
         </div>
       </div>
 
