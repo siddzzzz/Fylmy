@@ -1265,6 +1265,52 @@ export function Timeline({
                             return null;
                           })()}
 
+                          {/* Audio Waveform Visualization */}
+                          {track.type === 'audio' && (() => {
+                            const asset = mediaAssets.find((a) => a.id === clip.assetId);
+                            const rawWave = asset?.waveform;
+                            const barCount = Math.max(16, Math.min(300, Math.floor(clipWidth / 3.5)));
+                            
+                            return (
+                              <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1.5,
+                                padding: '0 6px',
+                                overflow: 'hidden',
+                                pointerEvents: 'none',
+                                opacity: 0.75,
+                                zIndex: 1,
+                              }}>
+                                {Array.from({ length: barCount }).map((_, idx) => {
+                                  let peak = 0.35;
+                                  if (rawWave && rawWave.length > 0) {
+                                    const waveIdx = Math.floor((idx / barCount) * rawWave.length);
+                                    peak = rawWave[waveIdx] || 0.35;
+                                  } else {
+                                    const s = Math.sin(idx * 0.3) * Math.cos(idx * 0.15);
+                                    peak = 0.2 + 0.45 * Math.abs(s);
+                                  }
+                                  const heightPercent = Math.max(12, Math.min(92, peak * 100));
+                                  return (
+                                    <div
+                                      key={idx}
+                                      style={{
+                                        flex: 1,
+                                        height: `${heightPercent}%`,
+                                        background: '#34d399',
+                                        borderRadius: 1,
+                                        opacity: 0.9,
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+
                           {/* Clip Label */}
                           <div style={{
                             display: 'inline-flex',
@@ -1279,16 +1325,16 @@ export function Timeline({
                             pointerEvents: 'none',
                             position: 'relative',
                             zIndex: 3,
-                            background: track.type === 'video' ? 'rgba(15, 23, 42, 0.78)' : 'transparent',
-                            padding: track.type === 'video' ? '2px 6px' : '0',
+                            background: (track.type === 'video' || track.type === 'audio') ? 'rgba(15, 23, 42, 0.78)' : 'transparent',
+                            padding: (track.type === 'video' || track.type === 'audio') ? '2px 6px' : '0',
                             borderRadius: 4,
-                            backdropFilter: track.type === 'video' ? 'blur(4px)' : 'none',
-                            boxShadow: track.type === 'video' ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
+                            backdropFilter: (track.type === 'video' || track.type === 'audio') ? 'blur(4px)' : 'none',
+                            boxShadow: (track.type === 'video' || track.type === 'audio') ? '0 1px 3px rgba(0,0,0,0.5)' : 'none',
                             textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 2px rgba(0,0,0,0.8)',
                           }}>
                             {track.type === 'blur' ? <Key size={10} color="#f59e0b" /> : null}
                             <span>{clip.name}</span>
-                            <span style={{ fontSize: 9, color: '#93c5fd', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                            <span style={{ fontSize: 9, color: track.type === 'audio' ? '#a7f3d0' : '#93c5fd', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
                               [{formatSecondsOnly(clip.duration)}]
                             </span>
                           </div>

@@ -2,6 +2,45 @@
  * Media processing and frame thumbnail extraction for imported video, audio, and images.
  */
 
+export async function extractAudioPeaks(file, sampleCount = 120) {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return generateDeterministicWaveform(sampleCount);
+    const ctx = new AudioContextClass();
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    const channelData = audioBuffer.getChannelData(0);
+    const step = Math.max(1, Math.floor(channelData.length / sampleCount));
+    const peaks = [];
+    for (let i = 0; i < sampleCount; i++) {
+      let max = 0;
+      const start = i * step;
+      const end = Math.min(channelData.length, start + step);
+      for (let j = start; j < end; j += 8) {
+        const val = Math.abs(channelData[j]);
+        if (val > max) max = val;
+      }
+      peaks.push(Math.min(1, Math.max(0.08, Number(max.toFixed(3)))));
+    }
+    ctx.close().catch(() => {});
+    return peaks;
+  } catch (e) {
+    return generateDeterministicWaveform(sampleCount);
+  }
+}
+
+export function generateDeterministicWaveform(count = 120, seed = 42) {
+  const peaks = [];
+  for (let i = 0; i < count; i++) {
+    const s1 = Math.sin((i * 0.15) + seed);
+    const s2 = Math.cos((i * 0.35) + seed * 2);
+    const s3 = Math.sin((i * 0.05));
+    const val = 0.2 + 0.35 * Math.abs(s1) + 0.25 * Math.abs(s2) + 0.2 * Math.abs(s3);
+    peaks.push(Math.min(0.95, Math.max(0.1, Number(val.toFixed(2)))));
+  }
+  return peaks;
+}
+
 export async function processImportedFile(file) {
   const url = URL.createObjectURL(file);
   const type = file.type.startsWith('video/')
@@ -56,6 +95,7 @@ export async function processImportedFile(file) {
         }
 
         const primaryThumb = frames.length > 0 ? frames[0].dataUrl : null;
+        const waveform = await extractAudioPeaks(file, 100);
 
         resolve({
           id: 'asset-' + Math.random().toString(36).substring(2, 9),
@@ -68,6 +108,7 @@ export async function processImportedFile(file) {
           height,
           thumbnailUrl: primaryThumb,
           frames,
+          waveform,
         });
       };
       vid.onerror = () => {
@@ -82,21 +123,36 @@ export async function processImportedFile(file) {
           height: 1080,
           thumbnailUrl: null,
           frames: [],
+          waveform: generateDeterministicWaveform(80),
         });
       };
     } else if (type === 'audio') {
       const aud = document.createElement('audio');
       aud.src = url;
       aud.preload = 'metadata';
-      aud.onloadedmetadata = () => {
+      aud.onloadedmetadata = async () => {
+        const waveform = await extractAudioPeaks(file, 150);
         resolve({
           id: 'asset-' + Math.random().toString(36).substring(2, 9),
           name: file.name,
           type: 'audio',
           url,
           blob: file,
-          duration: aud.duration,
+          duration: aud.duration || 10,
           thumbnailUrl: null,
+          waveform,
+        });
+      };
+      aud.onerror = () => {
+        resolve({
+          id: 'asset-' + Math.random().toString(36).substring(2, 9),
+          name: file.name,
+          type: 'audio',
+          url,
+          blob: file,
+          duration: 10,
+          thumbnailUrl: null,
+          waveform: generateDeterministicWaveform(100),
         });
       };
     } else {
