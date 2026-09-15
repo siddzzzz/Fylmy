@@ -5,14 +5,18 @@ export function KeyboardShortcutsModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const shortcuts = [
-    { key: 'Space', desc: 'Play / Pause video playback' },
-    { key: 'S', desc: 'Split selected clip at current playhead position' },
+    { key: 'Space', desc: 'Play / Pause playback' },
+    { key: 'J / K / L', desc: 'Shuttle controls: Rewind / Pause / Fast-Forward' },
+    { key: 'S or C', desc: 'Split clip at current playhead position' },
+    { key: 'M', desc: 'Add timeline marker / beat bookmark' },
     { key: 'Delete / Backspace', desc: 'Delete selected clip' },
     { key: 'Ctrl + D', desc: 'Duplicate selected clip' },
+    { key: 'Ctrl + S', desc: 'Save .fylmy project file' },
     { key: '← / →', desc: 'Step 1 frame backward / forward (1/30s)' },
     { key: 'Home / End', desc: 'Jump to start / end of timeline' },
     { key: 'Ctrl + Z', desc: 'Undo last action' },
     { key: 'Ctrl + Y', desc: 'Redo last action' },
+    { key: '?', desc: 'Toggle keyboard shortcuts cheatsheet' },
   ];
 
   return (
