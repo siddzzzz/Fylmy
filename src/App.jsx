@@ -43,6 +43,11 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
 
+  // --- Timeline Markers State ---
+  const [markers, setMarkers] = useState([
+    { id: 'marker-start', time: 0, label: 'Intro', color: '#3b82f6' }
+  ]);
+
   // --- Undo / Redo History ---
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -928,6 +933,33 @@ export default function App() {
     }
   };
 
+  // --- Timeline Markers Handlers ---
+  const handleAddMarker = useCallback((time = currentTimeRef.current, label = '', color = '#3b82f6') => {
+    const roundedTime = Math.round(time * 100) / 100;
+    setMarkers((prev) => {
+      const existing = prev.find((m) => Math.abs(m.time - roundedTime) < 0.1);
+      if (existing) {
+        // Cycle marker color if one already exists here
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+        const nextColor = colors[(colors.indexOf(existing.color) + 1) % colors.length];
+        return prev.map((m) => (m.id === existing.id ? { ...m, color: nextColor } : m));
+      }
+      return [
+        ...prev,
+        {
+          id: 'marker-' + Math.random().toString(36).substring(2, 9),
+          time: roundedTime,
+          label: label || `Marker ${prev.length + 1}`,
+          color,
+        },
+      ].sort((a, b) => a.time - b.time);
+    });
+  }, []);
+
+  const handleDeleteMarker = useCallback((markerId) => {
+    setMarkers((prev) => prev.filter((m) => m.id !== markerId));
+  }, []);
+
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -937,9 +969,22 @@ export default function App() {
       if (e.code === 'Space') {
         e.preventDefault();
         handleTogglePlay();
-      } else if (e.code === 'KeyS') {
+      } else if (e.code === 'KeyK') {
+        e.preventDefault();
+        setIsPlaying(false);
+      } else if (e.code === 'KeyL') {
+        e.preventDefault();
+        if (!isPlaying) handleTogglePlay();
+        else handleStepFrame(5);
+      } else if (e.code === 'KeyJ') {
+        e.preventDefault();
+        handleStepFrame(-5);
+      } else if (e.code === 'KeyS' || e.code === 'KeyC') {
         e.preventDefault();
         handleSplitClip();
+      } else if (e.code === 'KeyM') {
+        e.preventDefault();
+        handleAddMarker();
       } else if (e.code === 'Delete' || e.code === 'Backspace') {
         if (selectedClipId) {
           e.preventDefault();
@@ -957,6 +1002,12 @@ export default function App() {
       } else if (e.code === 'End') {
         e.preventDefault();
         handleSeek(totalDuration);
+      } else if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) {
+        e.preventDefault();
+        setIsShortcutsModalOpen((prev) => !prev);
+      } else if (e.ctrlKey && e.code === 'KeyS') {
+        e.preventDefault();
+        handleSaveProject();
       } else if (e.ctrlKey && e.code === 'KeyZ') {
         e.preventDefault();
         handleUndo();
@@ -972,6 +1023,7 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
+    isPlaying,
     handleTogglePlay,
     handleSplitClip,
     handleDeleteClip,
@@ -982,6 +1034,8 @@ export default function App() {
     handleUndo,
     handleRedo,
     handleDuplicateClip,
+    handleAddMarker,
+    handleSaveProject,
   ]);
 
 
@@ -997,6 +1051,7 @@ export default function App() {
       durationMode,
       customDuration,
       tracks,
+      markers,
       mediaAssets: mediaAssets.map((a) => ({
         id: a.id,
         name: a.name,
@@ -1036,6 +1091,9 @@ export default function App() {
             setTracks(data.tracks);
             pushHistory(data.tracks);
           }
+          if (data.markers && Array.isArray(data.markers)) {
+            setMarkers(data.markers);
+          }
           if (data.mediaAssets && Array.isArray(data.mediaAssets)) {
             setMediaAssets((prev) => {
               const existingIds = new Set(prev.map((a) => a.id));
@@ -1067,10 +1125,11 @@ export default function App() {
         durationMode,
         customDuration,
         tracks,
+        markers,
       };
       localStorage.setItem('fylmy_autosave_state', JSON.stringify(stateToPersist));
     } catch (e) {}
-  }, [projectName, aspectRatio, customResolution, durationMode, customDuration, tracks]);
+  }, [projectName, aspectRatio, customResolution, durationMode, customDuration, tracks, markers]);
 
   // Load Auto-Saved project state on mount if present
   useEffect(() => {
@@ -1083,6 +1142,7 @@ export default function App() {
         if (data.customResolution) setCustomResolution(data.customResolution);
         if (data.durationMode) setDurationMode(data.durationMode);
         if (data.customDuration) setCustomDuration(data.customDuration);
+        if (data.markers && Array.isArray(data.markers)) setMarkers(data.markers);
         if (data.tracks && data.tracks.length > 0) {
           setTracks(data.tracks);
           setHistory([data.tracks]);
@@ -1211,6 +1271,9 @@ export default function App() {
         onImportAndAddClip={handleImportAndAddClip}
         onImportFiles={handleImportFiles}
         mediaAssets={mediaAssets}
+        markers={markers}
+        onAddMarker={handleAddMarker}
+        onDeleteMarker={handleDeleteMarker}
         timelineHeight={timelineHeight}
         setTimelineHeight={setTimelineHeight}
         pxPerSecond={pxPerSecond}

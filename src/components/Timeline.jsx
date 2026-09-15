@@ -22,6 +22,7 @@ import {
   Maximize2,
   Minimize2,
   GripHorizontal,
+  Bookmark,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -54,6 +55,9 @@ export function Timeline({
   timelineHeight = 290,
   setTimelineHeight,
   mediaAssets = [],
+  markers = [],
+  onAddMarker,
+  onDeleteMarker,
 }) {
   const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
@@ -99,7 +103,7 @@ export function Timeline({
     document.body.style.userSelect = 'none';
   };
 
-  // Collect all cut points, playhead, and boundaries for magnetic snapping
+  // Collect all cut points, playhead, markers, and boundaries for magnetic snapping
   const snapTargets = useMemo(() => {
     const points = [0, duration, currentTime];
     for (const t of tracks) {
@@ -108,8 +112,11 @@ export function Timeline({
         points.push(c.start + c.duration);
       }
     }
+    for (const m of markers) {
+      points.push(m.time);
+    }
     return Array.from(new Set(points.map((p) => Math.round(p * 100) / 100)));
-  }, [tracks, duration, currentTime]);
+  }, [tracks, duration, currentTime, markers]);
 
   // Time conversion helper from any mouse clientX
   const clientXToTime = useCallback(
@@ -551,6 +558,23 @@ export function Timeline({
             <span>Snap</span>
           </button>
 
+          {/* Timeline Marker Button */}
+          <button
+            onClick={() => onAddMarker && onAddMarker()}
+            title="Add Timeline Marker at Playhead (M)"
+            style={{
+              padding: '4px 7px',
+              borderRadius: 3,
+              background: '#18181e',
+              border: '1px solid #22222a',
+              color: '#38bdf8',
+              fontSize: 11,
+            }}
+          >
+            <Bookmark size={12} />
+            <span>Marker (M)</span>
+          </button>
+
           <div style={{ width: 1, height: 16, background: '#25252e', margin: '0 3px' }} />
 
           {/* Direct + Video Layer Button */}
@@ -889,6 +913,60 @@ export function Timeline({
                 }}
               >
                 {!tick.isMinor ? tick.label : ''}
+              </div>
+            ))}
+
+            {/* Ruler Markers */}
+            {markers.map((marker) => (
+              <div
+                key={marker.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSeek(marker.time);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onDeleteMarker) onDeleteMarker(marker.id);
+                }}
+                title={`Marker: "${marker.label}" at ${marker.time.toFixed(2)}s (Click to jump, Right-click to delete)`}
+                style={{
+                  position: 'absolute',
+                  left: marker.time * pxPerSecond,
+                  top: 0,
+                  transform: 'translateX(-50%)',
+                  zIndex: 48,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    background: marker.color || '#3b82f6',
+                    color: '#ffffff',
+                    fontSize: 8,
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    padding: '0 3px',
+                    borderRadius: '2px 2px 0 0',
+                    lineHeight: '12px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {marker.label}
+                </div>
+                <div
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeft: '4px solid transparent',
+                    borderRight: '4px solid transparent',
+                    borderTop: `5px solid ${marker.color || '#3b82f6'}`,
+                  }}
+                />
               </div>
             ))}
 
@@ -1574,6 +1652,24 @@ export function Timeline({
                 </div>
               </div>
             )}
+
+            {/* Vertical Marker Guidelines across all tracks */}
+            {markers.map((marker) => (
+              <div
+                key={marker.id}
+                style={{
+                  position: 'absolute',
+                  left: marker.time * pxPerSecond,
+                  top: 0,
+                  bottom: 0,
+                  width: 1,
+                  borderLeft: `1.5px dashed ${marker.color || '#3b82f6'}`,
+                  opacity: 0.45,
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
 
             {/* Amber Playhead Full-Height Track Line (Draggable & Clickable) */}
             <div
