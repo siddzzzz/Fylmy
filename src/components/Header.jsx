@@ -33,6 +33,8 @@ export function Header({
   canRedo,
   onOpenExport,
   onOpenShortcuts,
+  onSaveProject,
+  onOpenProject,
 }) {
   const [aspectDropdownOpen, setAspectDropdownOpen] = useState(false);
   const [durationDropdownOpen, setDurationDropdownOpen] = useState(false);
@@ -110,6 +112,59 @@ export function Header({
           onFocus={(e) => (e.target.style.borderColor = '#3b82f6')}
           onBlur={(e) => (e.target.style.borderColor = '#272730')}
         />
+
+        {/* Save & Open .fylmy Project Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            onClick={onSaveProject}
+            title="Save Project (.fylmy JSON)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: 4,
+              background: '#181820',
+              border: '1px solid #2e2e3a',
+              color: '#94a3b8',
+              fontSize: 11,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+            }}
+          >
+            <span>Save</span>
+          </button>
+
+          <label
+            title="Open / Load Project (.fylmy JSON)"
+            style={{
+              padding: '4px 8px',
+              borderRadius: 4,
+              background: '#181820',
+              border: '1px solid #2e2e3a',
+              color: '#94a3b8',
+              fontSize: 11,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+            }}
+          >
+            <span>Open</span>
+            <input
+              type="file"
+              accept=".fylmy,.json"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  onOpenProject(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
 
         {/* Undo / Redo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>

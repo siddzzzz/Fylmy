@@ -986,6 +986,112 @@ export default function App() {
 
 
 
+  // --- Project Save & Load (.fylmy JSON) + LocalStorage Auto-Save ---
+  const handleSaveProject = useCallback(() => {
+    const projectData = {
+      version: '1.0',
+      fylmy: true,
+      projectName,
+      aspectRatio,
+      customResolution,
+      durationMode,
+      customDuration,
+      tracks,
+      mediaAssets: mediaAssets.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        duration: a.duration,
+        width: a.width,
+        height: a.height,
+        thumbnailUrl: a.thumbnailUrl,
+        frames: a.frames,
+        waveform: a.waveform,
+      })),
+      savedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.toLowerCase().replace(/\s+/g, '_') || 'my_fylmy_project'}.fylmy`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [projectName, aspectRatio, customResolution, durationMode, customDuration, tracks, mediaAssets]);
+
+  const handleOpenProject = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.fylmy || data.tracks) {
+          if (data.projectName) setProjectName(data.projectName);
+          if (data.aspectRatio) setAspectRatio(data.aspectRatio);
+          if (data.customResolution) setCustomResolution(data.customResolution);
+          if (data.durationMode) setDurationMode(data.durationMode);
+          if (data.customDuration) setCustomDuration(data.customDuration);
+          if (data.tracks) {
+            setTracks(data.tracks);
+            pushHistory(data.tracks);
+          }
+          if (data.mediaAssets && Array.isArray(data.mediaAssets)) {
+            setMediaAssets((prev) => {
+              const existingIds = new Set(prev.map((a) => a.id));
+              const merged = [...prev];
+              for (const ma of data.mediaAssets) {
+                if (!existingIds.has(ma.id)) {
+                  merged.push(ma);
+                }
+              }
+              return merged;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load project file:', err);
+        alert('Invalid .fylmy project file');
+      }
+    };
+    reader.readAsText(file);
+  }, [pushHistory]);
+
+  // Auto-Save project state to localStorage
+  useEffect(() => {
+    try {
+      const stateToPersist = {
+        projectName,
+        aspectRatio,
+        customResolution,
+        durationMode,
+        customDuration,
+        tracks,
+      };
+      localStorage.setItem('fylmy_autosave_state', JSON.stringify(stateToPersist));
+    } catch (e) {}
+  }, [projectName, aspectRatio, customResolution, durationMode, customDuration, tracks]);
+
+  // Load Auto-Saved project state on mount if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('fylmy_autosave_state');
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.projectName) setProjectName(data.projectName);
+        if (data.aspectRatio) setAspectRatio(data.aspectRatio);
+        if (data.customResolution) setCustomResolution(data.customResolution);
+        if (data.durationMode) setDurationMode(data.durationMode);
+        if (data.customDuration) setCustomDuration(data.customDuration);
+        if (data.tracks && data.tracks.length > 0) {
+          setTracks(data.tracks);
+          setHistory([data.tracks]);
+          setHistoryIndex(0);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   // Video Export Handler
   const handleStartExport = async (exportSettings) => {
     // Pause playback before export
@@ -1030,6 +1136,8 @@ export default function App() {
         canRedo={historyIndex < history.length - 1}
         onOpenExport={() => setIsExportModalOpen(true)}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+        onSaveProject={handleSaveProject}
+        onOpenProject={handleOpenProject}
       />
 
       {/* 2. Middle Workspace (Left MediaBin + Center Preview + Right Inspector) */}
