@@ -1288,8 +1288,8 @@ export function Timeline({
                           {/* Video Filmstrip Frame Previews (DaVinci/Premiere style) */}
                           {track.type === 'video' && (() => {
                             const asset = mediaAssets.find((a) => a.id === clip.assetId);
-                            const frames = asset?.frames || [];
-                            const thumbUrl = asset?.thumbnailUrl;
+                            const frames = (clip.frames && clip.frames.length > 0) ? clip.frames : (asset?.frames || []);
+                            const thumbUrl = clip.thumbnailUrl || asset?.thumbnailUrl || asset?.url;
 
                             const tileWidth = pxPerSecond >= 350 ? Math.max(72, pxPerSecond * 0.5) : Math.max(52, Math.min(84, pxPerSecond * 0.8));
                             const isFrameZoom = pxPerSecond >= 350;
@@ -1367,7 +1367,7 @@ export function Timeline({
                                   inset: 0,
                                   display: 'flex',
                                   overflow: 'hidden',
-                                  opacity: 0.9,
+                                  opacity: 0.92,
                                   pointerEvents: 'none',
                                   zIndex: 1,
                                 }}>

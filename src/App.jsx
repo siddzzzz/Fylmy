@@ -518,7 +518,7 @@ export default function App() {
           muted: false,
           locked: false,
           volume: 1,
-          color: '#1e3a8a',
+          color: '#12151e',
           accent: '#3b82f6',
           clips: [],
         };
@@ -763,7 +763,7 @@ export default function App() {
             muted: false,
             locked: false,
             volume: 1,
-            color: '#1e3a8a',
+            color: '#12151e',
             accent: '#3b82f6',
             clips: [],
           };
@@ -787,6 +787,9 @@ export default function App() {
         trackId: targetTrackId,
         assetId: asset.id,
         name: asset.name,
+        thumbnailUrl: asset.thumbnailUrl || (asset.type === 'image' || asset.type === 'video' ? asset.url : null),
+        frames: asset.frames || [],
+        waveform: asset.waveform || null,
         start: Math.round(nextStart * 100) / 100,
         duration: Math.round((asset.duration || 6) * 100) / 100,
         offset: 0,

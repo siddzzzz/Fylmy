@@ -61,15 +61,30 @@ export async function processImportedFile(file) {
         const width = vid.videoWidth || 1920;
         const height = vid.videoHeight || 1080;
 
-        // Extract a primary poster thumbnail + a filmstrip of frame slices across video duration
         const frames = [];
         const thumbCanvas = document.createElement('canvas');
         thumbCanvas.width = 120;
         thumbCanvas.height = 68;
         const ctx = thumbCanvas.getContext('2d');
 
-        // Extract up to 24 frames depending on video duration (at least 1 frame every ~1.5s)
-        const frameSampleCount = Math.min(24, Math.max(5, Math.floor(videoDuration * 0.8)));
+        // 1. Guaranteed initial poster frame at t=0.2s
+        try {
+          vid.currentTime = Math.min(0.2, videoDuration * 0.1);
+          await new Promise((res) => {
+            const onSeeked = () => {
+              vid.removeEventListener('seeked', onSeeked);
+              res();
+            };
+            vid.addEventListener('seeked', onSeeked);
+            setTimeout(res, 150);
+          });
+          ctx.drawImage(vid, 0, 0, 120, 68);
+          const initialThumb = thumbCanvas.toDataURL('image/jpeg', 0.7);
+          frames.push({ time: 0, dataUrl: initialThumb });
+        } catch (e) {}
+
+        // 2. Extract filmstrip of frame slices across video duration
+        const frameSampleCount = Math.min(20, Math.max(4, Math.floor(videoDuration * 0.8)));
         const step = videoDuration / (frameSampleCount + 1);
 
         for (let i = 1; i <= frameSampleCount; i++) {
@@ -82,7 +97,7 @@ export async function processImportedFile(file) {
                 res();
               };
               vid.addEventListener('seeked', onSeeked);
-              setTimeout(res, 200); // safety fallback timeout
+              setTimeout(res, 150);
             });
             ctx.drawImage(vid, 0, 0, 120, 68);
             frames.push({
@@ -169,6 +184,7 @@ export async function processImportedFile(file) {
           width: img.naturalWidth,
           height: img.naturalHeight,
           thumbnailUrl: url,
+          frames: [{ time: 0, dataUrl: url }],
         });
       };
     }
