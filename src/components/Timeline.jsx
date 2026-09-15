@@ -64,6 +64,7 @@ export function Timeline({
   const [isResizingHeight, setIsResizingHeight] = useState(false);
   const [dragInfo, setDragInfo] = useState(null); // { mode, clipId, sourceTrackId, targetTrackId, startX, startY, initStart, initDuration, initOffset, clipType }
   const [snapEnabled, setSnapEnabled] = useState(true);
+  const [activeSnapGuideTime, setActiveSnapGuideTime] = useState(null);
   const [durationPopoverOpen, setDurationPopoverOpen] = useState(false);
   const [dropTargetTrackId, setDropTargetTrackId] = useState(null);
   const [dropTargetTime, setDropTargetTime] = useState(0);
@@ -98,9 +99,9 @@ export function Timeline({
     document.body.style.userSelect = 'none';
   };
 
-  // Collect all cut points for magnetic snapping
+  // Collect all cut points, playhead, and boundaries for magnetic snapping
   const snapTargets = useMemo(() => {
-    const points = [0, duration];
+    const points = [0, duration, currentTime];
     for (const t of tracks) {
       for (const c of t.clips) {
         points.push(c.start);
@@ -108,7 +109,7 @@ export function Timeline({
       }
     }
     return Array.from(new Set(points.map((p) => Math.round(p * 100) / 100)));
-  }, [tracks, duration]);
+  }, [tracks, duration, currentTime]);
 
   // Time conversion helper from any mouse clientX
   const clientXToTime = useCallback(
@@ -192,17 +193,33 @@ export function Timeline({
 
         if (dragInfo.mode === 'move') {
           let newStart = Math.max(0, dragInfo.initStart + deltaTime);
+          let snappedPoint = null;
 
-          // Magnetic snap
+          // Magnetic snap (checks start edge, end edge, and playhead)
           if (snapEnabled) {
-            const snapThreshold = 8 / pxPerSecond;
+            const snapThreshold = 10 / pxPerSecond;
+            // 1. Check clip start edge
             for (const pt of snapTargets) {
               if (Math.abs(newStart - pt) < snapThreshold) {
                 newStart = pt;
+                snappedPoint = pt;
                 break;
               }
             }
+            // 2. Check clip end edge if start didn't snap
+            if (snappedPoint === null) {
+              const currentEnd = newStart + dragInfo.initDuration;
+              for (const pt of snapTargets) {
+                if (Math.abs(currentEnd - pt) < snapThreshold) {
+                  newStart = Math.max(0, pt - dragInfo.initDuration);
+                  snappedPoint = pt;
+                  break;
+                }
+              }
+            }
           }
+
+          setActiveSnapGuideTime(snappedPoint);
 
           // Detect which track is under the cursor (cross-track dragging)
           let hoveredTrackId = dragInfo.sourceTrackId;
@@ -229,8 +246,23 @@ export function Timeline({
 
         } else if (dragInfo.mode === 'trim-left') {
           const maxDelta = dragInfo.initDuration - 0.2;
-          const boundedDelta = Math.min(maxDelta, deltaTime);
+          let boundedDelta = Math.min(maxDelta, deltaTime);
           let newStart = Math.max(0, dragInfo.initStart + boundedDelta);
+          let snappedPoint = null;
+
+          if (snapEnabled) {
+            const snapThreshold = 10 / pxPerSecond;
+            for (const pt of snapTargets) {
+              if (Math.abs(newStart - pt) < snapThreshold) {
+                newStart = pt;
+                boundedDelta = newStart - dragInfo.initStart;
+                snappedPoint = pt;
+                break;
+              }
+            }
+          }
+          setActiveSnapGuideTime(snappedPoint);
+
           let newDuration = dragInfo.initDuration - boundedDelta;
           let newOffset = (dragInfo.initOffset || 0) + boundedDelta;
 
@@ -241,7 +273,22 @@ export function Timeline({
           });
 
         } else if (dragInfo.mode === 'trim-right') {
-          let newDuration = Math.max(0.2, dragInfo.initDuration + deltaTime);
+          let newEnd = dragInfo.initStart + dragInfo.initDuration + deltaTime;
+          let snappedPoint = null;
+
+          if (snapEnabled) {
+            const snapThreshold = 10 / pxPerSecond;
+            for (const pt of snapTargets) {
+              if (Math.abs(newEnd - pt) < snapThreshold) {
+                newEnd = pt;
+                snappedPoint = pt;
+                break;
+              }
+            }
+          }
+          setActiveSnapGuideTime(snappedPoint);
+
+          let newDuration = Math.max(0.2, newEnd - dragInfo.initStart);
           onUpdateClip(dragInfo.clipId, {
             duration: Math.round(newDuration * 100) / 100,
           });
@@ -250,6 +297,7 @@ export function Timeline({
     };
 
     const handleMouseUp = () => {
+      setActiveSnapGuideTime(null);
       if (dragInfo && dragInfo.mode === 'move') {
         const finalStart = dragInfo.currentStart ?? dragInfo.initStart;
         if (dragInfo.targetTrackId && dragInfo.targetTrackId !== dragInfo.sourceTrackId && onMoveClipToTrack) {
@@ -1486,6 +1534,43 @@ export function Timeline({
                       style={{ display: 'none' }}
                     />
                   </label>
+                </div>
+              </div>
+            )}
+
+            {/* Magnetic Snapping Cyan Alignment Guide Line */}
+            {activeSnapGuideTime !== null && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: activeSnapGuideTime * pxPerSecond,
+                  transform: 'translateX(-50%)',
+                  width: 2,
+                  background: '#06b6d4',
+                  boxShadow: '0 0 10px #06b6d4, 0 0 3px #ffffff',
+                  zIndex: 38,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    left: 6,
+                    background: 'rgba(6, 182, 212, 0.95)',
+                    color: '#082f49',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  🧲 {activeSnapGuideTime.toFixed(2)}s
                 </div>
               </div>
             )}
