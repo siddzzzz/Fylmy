@@ -34,6 +34,7 @@ export function MediaBin({
   const [hoverScrubPct, setHoverScrubPct] = useState(0);
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [editingName, setEditingName] = useState('');
+  const [isDragOverBin, setIsDragOverBin] = useState(false);
 
   const videoTracks = tracks.filter((t) => t.type === 'video');
   const audioTracks = tracks.filter((t) => t.type === 'audio');
@@ -91,7 +92,40 @@ export function MediaBin({
       <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
         {/* TAB 1: MEDIA POOL */}
         {activeTab === 'media' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes('Files')) {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOverBin(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragOverBin(false);
+            }}
+            onDrop={(e) => {
+              if (e.dataTransfer.types.includes('Files')) {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOverBin(false);
+                if (onImportFiles) {
+                  onImportFiles(e);
+                }
+              }
+            }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              minHeight: '100%',
+              borderRadius: 6,
+              border: isDragOverBin ? '2px dashed #3b82f6' : '2px dashed transparent',
+              background: isDragOverBin ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+          >
             {/* Import Button */}
             <label
               style={{
@@ -147,7 +181,7 @@ export function MediaBin({
                   lineHeight: 1.5,
                 }}>
                   Media pool is empty.<br />
-                  Click <strong style={{ color: '#94a3b8' }}>Import Footage / Audio</strong> above to add your videos.
+                  Click <strong style={{ color: '#94a3b8' }}>Import Footage / Audio</strong> or drop files here to add to bin.
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>

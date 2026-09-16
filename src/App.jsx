@@ -923,16 +923,30 @@ export default function App() {
     );
   }, []);
 
-  // Import local user files
-  const handleImportFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  // Import local user files into Media Pool (does not automatically place on timeline)
+  const handleImportFiles = async (eOrFiles) => {
+    let rawFiles = [];
+    if (eOrFiles?.target?.files) {
+      rawFiles = Array.from(eOrFiles.target.files);
+      try {
+        eOrFiles.target.value = '';
+      } catch (_) {}
+    } else if (eOrFiles?.dataTransfer?.files) {
+      rawFiles = Array.from(eOrFiles.dataTransfer.files);
+    } else if (Array.isArray(eOrFiles)) {
+      rawFiles = eOrFiles;
+    } else if (eOrFiles instanceof FileList) {
+      rawFiles = Array.from(eOrFiles);
+    }
+    if (rawFiles.length === 0) return;
 
-    for (const file of files) {
-      const asset = await processImportedFile(file);
-      setMediaAssets((prev) => [...prev, asset]);
-      // Automatically place first imported file on timeline
-      handleAddClipToTimeline(asset);
+    for (const file of rawFiles) {
+      try {
+        const asset = await processImportedFile(file);
+        setMediaAssets((prev) => [...prev, asset]);
+      } catch (err) {
+        console.error('Failed to import file:', err);
+      }
     }
   };
 
