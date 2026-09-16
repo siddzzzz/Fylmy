@@ -228,18 +228,30 @@ export function Timeline({
 
           setActiveSnapGuideTime(snappedPoint);
 
-          // Detect which track is under the cursor (cross-track dragging)
+          // Find closest compatible track under cursor vertically
           let hoveredTrackId = dragInfo.sourceTrackId;
+          let minDistance = Infinity;
+
           for (const [trackId, el] of trackLaneRefs.current.entries()) {
             if (el) {
               const rect = el.getBoundingClientRect();
-              if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                const targetTrack = tracks.find((t) => t.id === trackId);
-                // Allow moving if track types match (e.g. video to video, audio to audio)
-                if (targetTrack && targetTrack.type === dragInfo.clipType && !targetTrack.locked) {
+              const targetTrack = tracks.find((t) => t.id === trackId);
+              // Only consider tracks matching clip type and not locked
+              if (targetTrack && targetTrack.type === dragInfo.clipType && !targetTrack.locked) {
+                // If cursor is vertically inside track lane
+                if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
                   hoveredTrackId = trackId;
+                  minDistance = 0;
+                  break;
+                } else {
+                  // Distance to center of track
+                  const trackCenterY = rect.top + rect.height / 2;
+                  const dist = Math.abs(e.clientY - trackCenterY);
+                  if (dist < minDistance && dist < 85) {
+                    minDistance = dist;
+                    hoveredTrackId = trackId;
+                  }
                 }
-                break;
               }
             }
           }
@@ -1053,6 +1065,8 @@ export function Timeline({
         >
           {tracks.map((track) => {
             const isHoverTarget = dragInfo?.targetTrackId === track.id && dragInfo?.sourceTrackId !== track.id;
+            const isDropTarget = dropTargetTrackId === track.id;
+            const isTargetTrack = isHoverTarget || isDropTarget;
             const canDelete =
               (track.type === 'video' && videoTrackCount > 1 && track.id !== 'track-v1') ||
               (track.type === 'audio' && audioTrackCount > 1 && track.id !== 'track-a1');
@@ -1067,8 +1081,10 @@ export function Timeline({
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0 8px',
-                  background: isHoverTarget ? '#1e2438' : '#141418',
-                  transition: 'background 0.1s',
+                  background: isTargetTrack ? '#1e293b' : '#141418',
+                  borderLeft: isTargetTrack ? '3px solid #3b82f6' : '3px solid transparent',
+                  boxShadow: isTargetTrack ? 'inset 0 0 12px rgba(59, 130, 246, 0.25)' : 'none',
+                  transition: 'background 0.15s, border-color 0.15s',
                 }}
               >
                 {/* Track Code & Name */}
@@ -1079,13 +1095,21 @@ export function Timeline({
                     fontFamily: 'var(--font-mono)',
                     color: '#e2e8f0',
                     background: track.type === 'video' ? '#1e3a8a' : track.type === 'audio' ? '#065f46' : '#22222a',
-                    border: '1px solid #32323e',
+                    border: isTargetTrack ? '1px solid #3b82f6' : '1px solid #32323e',
                     padding: '1px 4px',
                     borderRadius: 2,
+                    boxShadow: isTargetTrack ? '0 0 8px rgba(59, 130, 246, 0.5)' : 'none',
                   }}>
                     {track.code || track.name.split(' ')[0]}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 500, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: isTargetTrack ? 700 : 500,
+                    color: isTargetTrack ? '#93c5fd' : '#94a3b8',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>
                     {track.name.replace(/^[A-Z0-9]+\s*/, '')}
                   </span>
                 </div>
@@ -1148,6 +1172,7 @@ export function Timeline({
               {tracks.map((track) => {
                 const isHoverTarget = dragInfo?.targetTrackId === track.id && dragInfo?.sourceTrackId !== track.id;
                 const isDropTarget = dropTargetTrackId === track.id;
+                const isTargetTrack = isHoverTarget || isDropTarget;
 
                 return (
                   <div
@@ -1165,44 +1190,102 @@ export function Timeline({
                       position: 'relative',
                       background: track.locked
                         ? 'rgba(0,0,0,0.4)'
-                        : isHoverTarget || isDropTarget
-                        ? '#1a233a'
+                        : isTargetTrack
+                        ? 'rgba(37, 99, 235, 0.14)'
                         : '#141418',
-                      boxShadow: isHoverTarget || isDropTarget ? 'inset 0 0 0 1.5px #3b82f6' : 'none',
-                      transition: 'background 0.1s, box-shadow 0.1s',
+                      boxShadow: isTargetTrack ? 'inset 0 0 0 1.5px #3b82f6, inset 0 0 16px rgba(59, 130, 246, 0.2)' : 'none',
+                      transition: 'background 0.15s, box-shadow 0.15s',
                     }}
                   >
-                    {/* Live Drag-and-Drop Placement Ghost */}
-                    {isDropTarget && (
+                    {/* Cross-Track Moving Live Placement Ghost */}
+                    {isHoverTarget && dragInfo?.mode === 'move' && dragInfo.clip && (
                       <div
                         style={{
                           position: 'absolute',
-                          left: dropTargetTime * pxPerSecond,
+                          left: (dragInfo.currentStart ?? dragInfo.initStart) * pxPerSecond,
+                          width: Math.max(12, dragInfo.initDuration * pxPerSecond),
                           top: 2,
                           bottom: 2,
-                          width: 140,
-                          background: 'rgba(59, 130, 246, 0.25)',
-                          border: '1.5px dashed #60a5fa',
-                          borderRadius: 2,
-                          zIndex: 25,
+                          borderRadius: 4,
+                          background: track.type === 'video' ? 'rgba(30, 58, 138, 0.88)' : 'rgba(6, 95, 70, 0.88)',
+                          border: '2px solid #60a5fa',
+                          boxShadow: '0 0 20px rgba(59, 130, 246, 0.75), 0 4px 14px rgba(0,0,0,0.9)',
+                          zIndex: 35,
                           pointerEvents: 'none',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#93c5fd',
-                          fontSize: 10,
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
+                          padding: '0 8px',
+                          overflow: 'hidden',
                         }}
                       >
-                        Drop at {dropTargetTime.toFixed(1)}s
+                        <div style={{
+                          position: 'absolute',
+                          top: 2,
+                          left: 4,
+                          background: '#2563eb',
+                          color: '#ffffff',
+                          fontSize: 8,
+                          fontWeight: 800,
+                          padding: '1px 5px',
+                          borderRadius: 2,
+                          fontFamily: 'var(--font-mono)',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                        }}>
+                          🎯 Move to {track.code || track.name} • {((dragInfo.currentStart ?? dragInfo.initStart)).toFixed(2)}s
+                        </div>
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: '#ffffff',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          textShadow: '0 1px 3px #000000',
+                          marginTop: 10,
+                        }}>
+                          {dragInfo.clip.name}
+                        </span>
                       </div>
                     )}
+
+                    {/* MediaBin / External Asset Drop Preview Ghost */}
+                    {isDropTarget && (() => {
+                      const draggedAsset = window.__fylmy_dragged_asset;
+                      const assetDur = draggedAsset?.duration || 6;
+                      const ghostWidth = Math.max(20, assetDur * pxPerSecond);
+                      return (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: dropTargetTime * pxPerSecond,
+                            top: 2,
+                            bottom: 2,
+                            width: ghostWidth,
+                            background: 'rgba(59, 130, 246, 0.28)',
+                            border: '2px dashed #60a5fa',
+                            borderRadius: 4,
+                            zIndex: 30,
+                            pointerEvents: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0 8px',
+                            color: '#93c5fd',
+                            boxShadow: '0 0 16px rgba(59, 130, 246, 0.45)',
+                          }}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', textShadow: '0 1px 2px #000' }}>
+                            + Drop into {track.code || track.name} at {dropTargetTime.toFixed(1)}s ({assetDur.toFixed(1)}s)
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Clips on this track */}
                     {track.clips.map((clip) => {
                       const isSelected = selectedClipId === clip.id;
                       const isBeingDragged = dragInfo?.clipId === clip.id;
+                      const isMovingToDifferentTrack = isBeingDragged && dragInfo.targetTrackId !== track.id;
                       const displayStart = isBeingDragged && dragInfo.currentStart !== undefined ? dragInfo.currentStart : clip.start;
                       const clipLeft = displayStart * pxPerSecond;
                       const clipWidth = Math.max(10, clip.duration * pxPerSecond);
@@ -1222,6 +1305,7 @@ export function Timeline({
                             setDragInfo({
                               mode: 'move',
                               clipId: clip.id,
+                              clip: clip,
                               sourceTrackId: track.id,
                               targetTrackId: track.id,
                               clipType: track.type,
@@ -1241,17 +1325,29 @@ export function Timeline({
                             bottom: 3,
                             borderRadius: 3,
                             background: track.type === 'video' ? '#0f141c' : (track.color || '#1e3a8a'),
-                            border: isSelected ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.18)',
-                            borderTop: track.type === 'video' ? (isSelected ? '2px solid #60a5fa' : '2px solid #3b82f6') : (isSelected ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.18)'),
-                            boxShadow: isSelected ? '0 0 0 1px #3b82f6, 0 2px 8px rgba(0,0,0,0.6)' : '0 1px 3px rgba(0,0,0,0.5)',
+                            border: isSelected
+                              ? '1px solid #60a5fa'
+                              : isMovingToDifferentTrack
+                              ? '1.5px dashed #64748b'
+                              : '1px solid rgba(255,255,255,0.18)',
+                            borderTop: track.type === 'video'
+                              ? isSelected ? '2px solid #60a5fa' : '2px solid #3b82f6'
+                              : isSelected ? '1px solid #60a5fa' : '1px solid rgba(255,255,255,0.18)',
+                            boxShadow: isSelected
+                              ? '0 0 0 1px #3b82f6, 0 2px 8px rgba(0,0,0,0.6)'
+                              : isBeingDragged && !isMovingToDifferentTrack
+                              ? '0 0 12px rgba(59, 130, 246, 0.55), 0 2px 8px rgba(0,0,0,0.7)'
+                              : '0 1px 3px rgba(0,0,0,0.5)',
                             cursor: track.locked ? 'not-allowed' : 'grab',
                             display: 'flex',
                             alignItems: 'center',
                             padding: '0 6px',
                             overflow: 'hidden',
                             userSelect: 'none',
-                            zIndex: isSelected ? 5 : 2,
-                            opacity: isBeingDragged ? 0.9 : 1,
+                            zIndex: isSelected ? 5 : isBeingDragged ? 4 : 2,
+                            opacity: isMovingToDifferentTrack ? 0.25 : isBeingDragged ? 0.95 : 1,
+                            filter: isMovingToDifferentTrack ? 'grayscale(0.6)' : 'none',
+                            transition: isBeingDragged ? 'none' : 'border-color 0.15s, box-shadow 0.15s',
                           }}
                         >
                           {/* Left Trim Handle */}

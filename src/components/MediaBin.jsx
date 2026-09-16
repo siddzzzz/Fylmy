@@ -190,8 +190,12 @@ export function MediaBin({
                       key={asset.id}
                       draggable={true}
                       onDragStart={(e) => {
+                        window.__fylmy_dragged_asset = asset;
                         e.dataTransfer.setData('application/json', JSON.stringify({ type: 'asset', asset }));
                         e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      onDragEnd={() => {
+                        window.__fylmy_dragged_asset = null;
                       }}
                       title="Drag and drop onto timeline track, or use layer buttons"
                       style={{
