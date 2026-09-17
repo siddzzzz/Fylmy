@@ -131,6 +131,38 @@ export const FILTER_PRESETS = [
   { id: 'vintage90s', name: 'Kodak Portra Emulation', filters: { brightness: 105, contrast: 95, saturation: 90, temperature: 15, vignette: 30, blur: 0 } },
 ];
 
+export const TRANSITION_TYPES = [
+  { id: 'none', name: 'None (Hard Cut)', icon: 'Scissors' },
+  { id: 'crossfade', name: 'Cross Dissolve', icon: 'Blend' },
+  { id: 'fadeBlack', name: 'Fade to Black', icon: 'Moon' },
+  { id: 'dipWhite', name: 'Dip to White', icon: 'Sun' },
+  { id: 'wipeLeft', name: 'Wipe Left', icon: 'ArrowLeft' },
+  { id: 'wipeRight', name: 'Wipe Right', icon: 'ArrowRight' },
+  { id: 'slideLeft', name: 'Slide In Left', icon: 'MoveLeft' },
+  { id: 'slideRight', name: 'Slide In Right', icon: 'MoveRight' },
+  { id: 'zoomBlur', name: 'Zoom In Pulse', icon: 'Maximize2' },
+];
+
+export const PIP_PRESETS = [
+  { id: 'fullscreen', name: 'Full Frame', transform: { x: 0, y: 0, scale: 1, rotation: 0, fitMode: 'contain' } },
+  { id: 'pip_top_right', name: 'PiP Top-Right', transform: { x: 30, y: -26, scale: 0.36, rotation: 0, fitMode: 'contain' } },
+  { id: 'pip_bottom_right', name: 'PiP Bottom-Right', transform: { x: 30, y: 26, scale: 0.36, rotation: 0, fitMode: 'contain' } },
+  { id: 'pip_top_left', name: 'PiP Top-Left', transform: { x: -30, y: -26, scale: 0.36, rotation: 0, fitMode: 'contain' } },
+  { id: 'pip_bottom_left', name: 'PiP Bottom-Left', transform: { x: -30, y: 26, scale: 0.36, rotation: 0, fitMode: 'contain' } },
+  { id: 'split_left', name: 'Split 50% Left', transform: { x: -25, y: 0, scale: 0.5, rotation: 0, fitMode: 'cover' } },
+  { id: 'split_right', name: 'Split 50% Right', transform: { x: 25, y: 0, scale: 0.5, rotation: 0, fitMode: 'cover' } },
+];
+
+export const SPEED_PRESETS = [
+  { value: 0.25, label: '0.25x (Super Slow)' },
+  { value: 0.5, label: '0.5x (Slow Motion)' },
+  { value: 0.75, label: '0.75x' },
+  { value: 1.0, label: '1.0x (Normal)' },
+  { value: 1.5, label: '1.5x' },
+  { value: 2.0, label: '2.0x (Fast Forward)' },
+  { value: 4.0, label: '4.0x (Timelapse)' },
+];
+
 export function formatTimecode(seconds, fps = 30) {
   if (isNaN(seconds) || seconds < 0) seconds = 0;
   const h = Math.floor(seconds / 3600);

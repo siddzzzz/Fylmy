@@ -170,18 +170,39 @@ export class Compositor {
       (!filters.saturation || filters.saturation === 100) &&
       (!filters.temperature || filters.temperature === 0);
 
-    // Calculate dynamic 1-click Fade In / Fade Out transition curve
+    // Calculate dynamic Transitions & Fade In / Fade Out curve
     let fadeMultiplier = 1;
-    if (clip.fadeIn && clip.fadeIn > 0) {
+    let transitionProgressIn = null;
+    let transitionProgressOut = null;
+
+    const transIn = clip.transitionIn || (clip.fadeIn ? { type: 'crossfade', duration: clip.fadeIn } : null);
+    const transOut = clip.transitionOut || (clip.fadeOut ? { type: 'crossfade', duration: clip.fadeOut } : null);
+
+    if (transIn && transIn.type !== 'none') {
+      const dur = transIn.duration || 1.0;
       const elapsed = currentTime - clip.start;
-      if (elapsed < clip.fadeIn) {
-        fadeMultiplier *= Math.max(0, Math.min(1, elapsed / clip.fadeIn));
+      if (elapsed < dur) {
+        transitionProgressIn = Math.max(0, Math.min(1, elapsed / dur));
       }
     }
-    if (clip.fadeOut && clip.fadeOut > 0) {
+
+    if (transOut && transOut.type !== 'none') {
+      const dur = transOut.duration || 1.0;
       const remaining = (clip.start + clip.duration) - currentTime;
-      if (remaining < clip.fadeOut) {
-        fadeMultiplier *= Math.max(0, Math.min(1, remaining / clip.fadeOut));
+      if (remaining < dur) {
+        transitionProgressOut = Math.max(0, Math.min(1, remaining / dur));
+      }
+    }
+
+    // Standard Alpha Fade for Crossfade
+    if (transitionProgressIn !== null) {
+      if (transIn.type === 'crossfade' || transIn.type === 'fadeBlack') {
+        fadeMultiplier *= transitionProgressIn;
+      }
+    }
+    if (transitionProgressOut !== null) {
+      if (transOut.type === 'crossfade' || transOut.type === 'fadeBlack') {
+        fadeMultiplier *= transitionProgressOut;
       }
     }
 
@@ -204,6 +225,30 @@ export class Compositor {
         }
       }
       ctx.filter = filterParts.length > 0 ? filterParts.join(' ') : 'none';
+    }
+
+    // Apply Transition Wipe Clipping if active
+    if (transitionProgressIn !== null) {
+      if (transIn.type === 'wipeLeft') {
+        ctx.beginPath();
+        ctx.rect(0, 0, canvasWidth * transitionProgressIn, canvasHeight);
+        ctx.clip();
+      } else if (transIn.type === 'wipeRight') {
+        ctx.beginPath();
+        ctx.rect(canvasWidth * (1 - transitionProgressIn), 0, canvasWidth * transitionProgressIn, canvasHeight);
+        ctx.clip();
+      }
+    }
+    if (transitionProgressOut !== null) {
+      if (transOut.type === 'wipeLeft') {
+        ctx.beginPath();
+        ctx.rect(0, 0, canvasWidth * transitionProgressOut, canvasHeight);
+        ctx.clip();
+      } else if (transOut.type === 'wipeRight') {
+        ctx.beginPath();
+        ctx.rect(canvasWidth * (1 - transitionProgressOut), 0, canvasWidth * transitionProgressOut, canvasHeight);
+        ctx.clip();
+      }
     }
 
     const mediaAspect = naturalWidth / naturalHeight;
@@ -251,20 +296,57 @@ export class Compositor {
       }
     }
 
+    // Slide and Zoom in/out transition offsets
+    let slideOffsetX = 0;
+    let zoomScaleBonus = 0;
+
+    if (transitionProgressIn !== null) {
+      if (transIn.type === 'slideLeft') {
+        slideOffsetX += (1 - transitionProgressIn) * -canvasWidth;
+      } else if (transIn.type === 'slideRight') {
+        slideOffsetX += (1 - transitionProgressIn) * canvasWidth;
+      } else if (transIn.type === 'zoomBlur') {
+        zoomScaleBonus += (1 - transitionProgressIn) * 0.4;
+      }
+    }
+    if (transitionProgressOut !== null) {
+      if (transOut.type === 'slideLeft') {
+        slideOffsetX += (1 - transitionProgressOut) * canvasWidth;
+      } else if (transOut.type === 'slideRight') {
+        slideOffsetX += (1 - transitionProgressOut) * -canvasWidth;
+      } else if (transOut.type === 'zoomBlur') {
+        zoomScaleBonus += (1 - transitionProgressOut) * 0.4;
+      }
+    }
+
     // Apply custom transforms (pan, scale, rotation)
-    const centerX = drawX + drawW / 2 + (transform.x || 0);
+    const centerX = drawX + drawW / 2 + (transform.x || 0) + slideOffsetX;
     const centerY = drawY + drawH / 2 + (transform.y || 0);
 
     ctx.translate(centerX, centerY);
     if (transform.rotation) {
       ctx.rotate((transform.rotation * Math.PI) / 180);
     }
-    const scale = transform.scale || 1;
+    const scale = (transform.scale || 1) + zoomScaleBonus;
     ctx.scale(scale, scale);
 
-    ctx.drawImage(mediaEl, -drawW / 2, -drawH / 2, drawW, drawH);
+    // Chroma Key (Green / Blue Screen) processing if enabled
+    if (clip.chromaKey?.enabled) {
+      this.renderChromaKeyed(ctx, mediaEl, drawW, drawH, clip.chromaKey);
+    } else {
+      ctx.drawImage(mediaEl, -drawW / 2, -drawH / 2, drawW, drawH);
+    }
 
     ctx.restore();
+
+    // White Flash / Dip to White overlay
+    if ((transitionProgressIn !== null && transIn.type === 'dipWhite') || (transitionProgressOut !== null && transOut.type === 'dipWhite')) {
+      const p = transitionProgressIn !== null ? transitionProgressIn : transitionProgressOut;
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 255, 255, ${(1 - p) * 0.9})`;
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.restore();
+    }
 
     // Apply Vignette if configured
     if (filters.vignette > 0) {
@@ -432,21 +514,62 @@ export class Compositor {
   }
 
   /**
-   * Cinematic Vignette Effect
+   * Real-time Chroma Keying (Green / Blue Screen removal)
    */
-  drawVignette(ctx, width, height, strength) {
-    ctx.save();
-    const radius = Math.max(width, height) * 0.7;
-    const gradient = ctx.createRadialGradient(
-      width / 2, height / 2, radius * 0.4,
-      width / 2, height / 2, radius
-    );
-    const alpha = (strength / 100) * 0.8;
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, `rgba(0,0,0,${alpha})`);
+  renderChromaKeyed(ctx, mediaEl, drawW, drawH, chromaConfig) {
+    const keyColor = chromaConfig.color || '#00ff00';
+    const tolerance = (chromaConfig.tolerance || 45) * 2.55; // 0-255 range
+    const softness = (chromaConfig.softness || 15) * 2.55;
 
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
+    // Parse target hex color to RGB
+    let tr = 0, tg = 255, tb = 0;
+    if (keyColor.startsWith('#')) {
+      const hex = keyColor.slice(1);
+      if (hex.length === 6) {
+        tr = parseInt(hex.substring(0, 2), 16);
+        tg = parseInt(hex.substring(2, 4), 16);
+        tb = parseInt(hex.substring(4, 6), 16);
+      }
+    }
+
+    const w = Math.round(drawW);
+    const h = Math.round(drawH);
+    if (this.tempCanvas.width !== w || this.tempCanvas.height !== h) {
+      this.tempCanvas.width = w;
+      this.tempCanvas.height = h;
+    }
+
+    this.tempCtx.clearRect(0, 0, w, h);
+    this.tempCtx.drawImage(mediaEl, 0, 0, w, h);
+
+    try {
+      const imgData = this.tempCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const len = data.length;
+
+      for (let i = 0; i < len; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        // Euclidean color distance in RGB space
+        const dr = r - tr;
+        const dg = g - tg;
+        const db = b - tb;
+        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+
+        if (dist < tolerance) {
+          data[i + 3] = 0; // Transparent
+        } else if (dist < tolerance + softness && softness > 0) {
+          const alpha = (dist - tolerance) / softness;
+          data[i + 3] = Math.round(data[i + 3] * alpha);
+        }
+      }
+
+      this.tempCtx.putImageData(imgData, 0, 0);
+      ctx.drawImage(this.tempCanvas, -drawW / 2, -drawH / 2, drawW, drawH);
+    } catch (_) {
+      ctx.drawImage(mediaEl, -drawW / 2, -drawH / 2, drawW, drawH);
+    }
   }
 }

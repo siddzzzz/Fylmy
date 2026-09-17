@@ -15,7 +15,7 @@ import {
   Edit2,
   Check,
 } from 'lucide-react';
-import { formatSecondsOnly } from '../types/defaults';
+import { formatSecondsOnly, TRANSITION_TYPES, PIP_PRESETS, SPEED_PRESETS } from '../types/defaults';
 
 export function Inspector({
   selectedClip,
@@ -333,6 +333,36 @@ export function Inspector({
                 ))}
               </div>
 
+              {/* PiP & Split-Screen Quick Layouts */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginBottom: 5 }}>
+                  Quick Layout Presets (PiP / Split)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+                  {PIP_PRESETS.map((pip) => (
+                    <button
+                      key={pip.id}
+                      onClick={() => onUpdateClip(selectedClip.id, { transform: { ...transform, ...pip.transform } })}
+                      style={{
+                        padding: '4px 6px',
+                        borderRadius: 3,
+                        fontSize: 10,
+                        background: '#181820',
+                        border: '1px solid #2d2d3a',
+                        color: '#cbd5e1',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#222230'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#2d2d3a'; e.currentTarget.style.background = '#181820'; }}
+                    >
+                      {pip.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Mirror Blur Background */}
               <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, cursor: 'pointer', marginBottom: 10, color: '#94a3b8' }}>
                 <input
@@ -352,7 +382,7 @@ export function Inspector({
                 </div>
                 <input
                   type="range"
-                  min="0.3"
+                  min="0.2"
                   max="2.5"
                   step="0.05"
                   value={transform.scale || 1}
@@ -413,13 +443,165 @@ export function Inspector({
               </div>
             </div>
 
+            {/* Section: Transitions & Visual Cuts */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
+                Transitions & Cuts
+              </div>
+
+              {/* Transition In */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
+                  <span>Transition In</span>
+                  <span className="val-badge">{selectedClip.transitionIn?.duration || 1.0}s</span>
+                </div>
+                <select
+                  value={selectedClip.transitionIn?.type || (selectedClip.fadeIn ? 'crossfade' : 'none')}
+                  onChange={(e) => onUpdateClip(selectedClip.id, {
+                    transitionIn: { type: e.target.value, duration: selectedClip.transitionIn?.duration || 1.0 }
+                  })}
+                  style={{ width: '100%', background: '#121216', border: '1px solid #383848', color: '#f1f5f9', padding: '5px 6px', borderRadius: 3, fontSize: 11, marginBottom: 5 }}
+                >
+                  {TRANSITION_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                {(selectedClip.transitionIn?.type && selectedClip.transitionIn?.type !== 'none') && (
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="3.0"
+                    step="0.1"
+                    value={selectedClip.transitionIn?.duration || 1.0}
+                    onChange={(e) => onUpdateClip(selectedClip.id, {
+                      transitionIn: { type: selectedClip.transitionIn?.type || 'crossfade', duration: parseFloat(e.target.value) }
+                    })}
+                    style={{ width: '100%' }}
+                  />
+                )}
+              </div>
+
+              {/* Transition Out */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
+                  <span>Transition Out</span>
+                  <span className="val-badge">{selectedClip.transitionOut?.duration || 1.0}s</span>
+                </div>
+                <select
+                  value={selectedClip.transitionOut?.type || (selectedClip.fadeOut ? 'crossfade' : 'none')}
+                  onChange={(e) => onUpdateClip(selectedClip.id, {
+                    transitionOut: { type: e.target.value, duration: selectedClip.transitionOut?.duration || 1.0 }
+                  })}
+                  style={{ width: '100%', background: '#121216', border: '1px solid #383848', color: '#f1f5f9', padding: '5px 6px', borderRadius: 3, fontSize: 11, marginBottom: 5 }}
+                >
+                  {TRANSITION_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                {(selectedClip.transitionOut?.type && selectedClip.transitionOut?.type !== 'none') && (
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="3.0"
+                    step="0.1"
+                    value={selectedClip.transitionOut?.duration || 1.0}
+                    onChange={(e) => onUpdateClip(selectedClip.id, {
+                      transitionOut: { type: selectedClip.transitionOut?.type || 'crossfade', duration: parseFloat(e.target.value) }
+                    })}
+                    style={{ width: '100%' }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Section: Chroma Key (Green / Blue Screen) */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Chroma Key (Green Screen)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={selectedClip.chromaKey?.enabled ?? false}
+                  onChange={(e) => onUpdateClip(selectedClip.id, {
+                    chromaKey: {
+                      enabled: e.target.checked,
+                      color: selectedClip.chromaKey?.color || '#00ff00',
+                      tolerance: selectedClip.chromaKey?.tolerance ?? 45,
+                      softness: selectedClip.chromaKey?.softness ?? 15,
+                    }
+                  })}
+                  style={{ accentColor: '#10b981', cursor: 'pointer' }}
+                />
+              </div>
+
+              {selectedClip.chromaKey?.enabled && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#14141a', padding: 8, borderRadius: 4, border: '1px solid #282834' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      type="color"
+                      value={selectedClip.chromaKey?.color || '#00ff00'}
+                      onChange={(e) => onUpdateClip(selectedClip.id, {
+                        chromaKey: { ...selectedClip.chromaKey, color: e.target.value }
+                      })}
+                      style={{ width: 28, height: 22, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    />
+                    <button
+                      onClick={() => onUpdateClip(selectedClip.id, { chromaKey: { ...selectedClip.chromaKey, color: '#00ff00' } })}
+                      style={{ padding: '2px 6px', fontSize: 10, background: '#064e3b', color: '#6ee7b7', borderRadius: 2, border: '1px solid #059669' }}
+                    >
+                      Green
+                    </button>
+                    <button
+                      onClick={() => onUpdateClip(selectedClip.id, { chromaKey: { ...selectedClip.chromaKey, color: '#0055ff' } })}
+                      style={{ padding: '2px 6px', fontSize: 10, background: '#1e3a8a', color: '#93c5fd', borderRadius: 2, border: '1px solid #2563eb' }}
+                    >
+                      Blue
+                    </button>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
+                      <span>Tolerance</span>
+                      <span className="val-badge">{selectedClip.chromaKey?.tolerance ?? 45}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="95"
+                      value={selectedClip.chromaKey?.tolerance ?? 45}
+                      onChange={(e) => onUpdateClip(selectedClip.id, {
+                        chromaKey: { ...selectedClip.chromaKey, tolerance: parseInt(e.target.value) }
+                      })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
+                      <span>Edge Softness</span>
+                      <span className="val-badge">{selectedClip.chromaKey?.softness ?? 15}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="50"
+                      value={selectedClip.chromaKey?.softness ?? 15}
+                      onChange={(e) => onUpdateClip(selectedClip.id, {
+                        chromaKey: { ...selectedClip.chromaKey, softness: parseInt(e.target.value) }
+                      })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Section: Playback Speed & Audio Gain */}
             <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.8 }}>
                 Speed & Playback
               </div>
 
-              {/* Casual Speed Preset Buttons */}
+              {/* Speed Preset Buttons */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3, marginBottom: 8 }}>
                 {[
                   { s: 0.5, label: '0.5x' },
@@ -447,7 +629,7 @@ export function Inspector({
                 ))}
               </div>
 
-              {/* Audio Volume & Automation Keyframes */}
+              {/* Audio Volume, Fades, and Automation Keyframes */}
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>
                   <span>Base Volume</span>
@@ -460,8 +642,42 @@ export function Inspector({
                   step="0.05"
                   value={selectedClip.volume ?? 1}
                   onChange={(e) => onUpdateClip(selectedClip.id, { volume: parseFloat(e.target.value) })}
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', marginBottom: 8 }}
                 />
+
+                {/* Audio Fade In & Fade Out */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                      <span>Fade In</span>
+                      <span className="val-badge">{(selectedClip.audioFadeIn || 0).toFixed(1)}s</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="4.0"
+                      step="0.2"
+                      value={selectedClip.audioFadeIn || 0}
+                      onChange={(e) => onUpdateClip(selectedClip.id, { audioFadeIn: parseFloat(e.target.value), fadeIn: parseFloat(e.target.value) })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                      <span>Fade Out</span>
+                      <span className="val-badge">{(selectedClip.audioFadeOut || 0).toFixed(1)}s</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="4.0"
+                      step="0.2"
+                      value={selectedClip.audioFadeOut || 0}
+                      onChange={(e) => onUpdateClip(selectedClip.id, { audioFadeOut: parseFloat(e.target.value), fadeOut: parseFloat(e.target.value) })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
 
                 {/* Volume Keyframe Automation (Filmora/Premiere style) */}
                 <div style={{
