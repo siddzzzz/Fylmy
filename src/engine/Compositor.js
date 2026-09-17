@@ -462,15 +462,37 @@ export class Compositor {
 
     ctx.save();
     ctx.globalAlpha = fadeMultiplier;
-    const fontSize = Math.round((config.fontSize / 1080) * canvasHeight);
+
+    // Animation progress calculations
+    const elapsed = currentTime - clip.start;
+    let animScale = 1;
+    let animOffsetY = 0;
+
+    if (config.animation === 'popIn' && elapsed < 0.4) {
+      const p = elapsed / 0.4;
+      // Spring overshoot easing
+      animScale = 0.4 + 0.6 * (1 + Math.sin(p * Math.PI * 0.5) * 0.15);
+    } else if (config.animation === 'slideUp' && elapsed < 0.4) {
+      const p = elapsed / 0.4;
+      animOffsetY = (1 - p) * (fontSize * 0.8);
+    }
+
+    const fontSize = Math.round((config.fontSize / 1080) * canvasHeight * animScale);
     ctx.font = `700 ${fontSize}px ${config.fontFamily || 'Outfit, sans-serif'}`;
     ctx.textAlign = config.align || 'center';
     ctx.textBaseline = 'middle';
 
     const x = config.align === 'center' ? canvasWidth / 2 : config.align === 'left' ? 80 : canvasWidth - 80;
-    const y = (config.yPos / 100) * canvasHeight;
+    const y = (config.yPos / 100) * canvasHeight + animOffsetY;
 
-    const lines = (config.text || '').split('\n');
+    let fullText = config.text || '';
+    if (config.animation === 'typewriter') {
+      const typingSpeed = config.typingSpeed || 14; // chars per second
+      const visibleChars = Math.floor(elapsed * typingSpeed);
+      fullText = fullText.slice(0, Math.max(1, Math.min(fullText.length, visibleChars)));
+    }
+
+    const lines = fullText.split('\n');
     const lineHeight = fontSize * 1.3;
 
     lines.forEach((line, index) => {
@@ -491,11 +513,18 @@ export class Compositor {
         ctx.fill();
       }
 
-      // Text Shadow for contrast
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      // Text Shadow / Neon Glow
+      if (config.animation === 'glow') {
+        ctx.shadowColor = config.glowColor || '#38bdf8';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      } else {
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+      }
 
       // Text Outline / Stroke (Viral Captions & High Legibility)
       if (config.strokeWidth && config.strokeWidth > 0) {
