@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   FolderOpen,
   Plus,
@@ -14,8 +14,13 @@ import {
   Edit2,
   Check,
   X,
+  Play,
+  Pause,
+  Volume2,
+  Mic,
 } from 'lucide-react';
 import { formatSecondsOnly, FILTER_PRESETS } from '../types/defaults';
+import { BUILTIN_SFX_PRESETS, createAssetFromSfxPreset } from '../utils/sfxGenerator';
 
 export function MediaBin({
   mediaAssets,
@@ -29,12 +34,37 @@ export function MediaBin({
   selectedClip,
   onRenameMediaAsset,
 }) {
-  const [activeTab, setActiveTab] = useState('media'); // 'media' | 'blur' | 'text' | 'filters'
+  const [activeTab, setActiveTab] = useState('media'); // 'media' | 'sfx' | 'blur' | 'text' | 'filters'
   const [hoveredScrubAssetId, setHoveredScrubAssetId] = useState(null);
   const [hoverScrubPct, setHoverScrubPct] = useState(0);
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [isDragOverBin, setIsDragOverBin] = useState(false);
+  const [auditioningPresetId, setAuditioningPresetId] = useState(null);
+  const auditionAudioRef = useRef(null);
+
+  const handleAuditionSfx = async (preset) => {
+    try {
+      if (auditioningPresetId === preset.id) {
+        if (auditionAudioRef.current) {
+          auditionAudioRef.current.pause();
+        }
+        setAuditioningPresetId(null);
+        return;
+      }
+      const asset = await createAssetFromSfxPreset(preset);
+      if (auditionAudioRef.current) {
+        auditionAudioRef.current.pause();
+      }
+      const audio = new Audio(asset.url);
+      auditionAudioRef.current = audio;
+      setAuditioningPresetId(preset.id);
+      audio.onended = () => setAuditioningPresetId(null);
+      audio.play();
+    } catch (e) {
+      console.error('Failed to audition SFX:', e);
+    }
+  };
 
   const videoTracks = tracks.filter((t) => t.type === 'video');
   const audioTracks = tracks.filter((t) => t.type === 'audio');
@@ -60,6 +90,7 @@ export function MediaBin({
       }}>
         {[
           { id: 'media', label: 'Media Pool', icon: FolderOpen },
+          { id: 'sfx', label: 'Sound FX', icon: Music },
           { id: 'blur', label: 'Mask / Censor', icon: Target },
           { id: 'text', label: 'Titles', icon: Type },
           { id: 'filters', label: 'Color LUTs', icon: Sliders },
@@ -466,7 +497,117 @@ export function MediaBin({
           </div>
         )}
 
-        {/* TAB 2: MASK & CENSOR (KEYFRAMED MOTION TRACKING) */}
+        {/* TAB 2: BUILT-IN SOUND FX & MUSIC */}
+        {activeTab === 'sfx' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{
+              background: '#131b17',
+              border: '1px solid #1c3d2d',
+              borderRadius: 4,
+              padding: 10,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 12, color: '#a7f3d0' }}>
+                <Music size={14} color="#10b981" />
+                <span>Royalty-Free SFX & Beats</span>
+              </div>
+              <p style={{ fontSize: 11, color: '#6ee7b7', marginTop: 4, lineHeight: 1.4 }}>
+                Instant procedural audio assets. Click to preview or add directly to audio tracks.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {BUILTIN_SFX_PRESETS.map((preset) => {
+                const isAuditioning = auditioningPresetId === preset.id;
+                return (
+                  <div
+                    key={preset.id}
+                    draggable={true}
+                    onDragStart={async (e) => {
+                      const asset = await createAssetFromSfxPreset(preset);
+                      window.__fylmy_dragged_asset = asset;
+                      e.dataTransfer.setData('application/json', JSON.stringify({ type: 'asset', asset }));
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onDragEnd={() => {
+                      window.__fylmy_dragged_asset = null;
+                    }}
+                    style={{
+                      background: '#17171e',
+                      border: '1px solid #282835',
+                      borderRadius: 4,
+                      padding: '8px 10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      cursor: 'grab',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' }}>
+                      <button
+                        onClick={() => handleAuditionSfx(preset)}
+                        title={isAuditioning ? 'Stop Preview' : 'Audition Sound'}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          background: isAuditioning ? '#10b981' : '#22222d',
+                          border: isAuditioning ? '1px solid #34d399' : '1px solid #383848',
+                          color: isAuditioning ? '#042f2e' : '#e2e8f0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isAuditioning ? <Pause size={10} /> : <Play size={10} style={{ marginLeft: 1 }} />}
+                      </button>
+
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {preset.name}
+                        </div>
+                        <div style={{ fontSize: 9, color: '#71717a', display: 'flex', gap: 6, marginTop: 1 }}>
+                          <span style={{ color: '#34d399', fontWeight: 600 }}>{preset.category}</span>
+                          <span>•</span>
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>{preset.duration}s</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                      {audioTracks.map((at) => (
+                        <button
+                          key={at.id}
+                          onClick={async () => {
+                            const asset = await createAssetFromSfxPreset(preset);
+                            onAddClipToTimeline(asset, at.id);
+                          }}
+                          title={`Add to ${at.name}`}
+                          style={{
+                            padding: '3px 6px',
+                            borderRadius: 2,
+                            background: '#064e3b',
+                            border: '1px solid #059669',
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: '#a7f3d0',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          +{at.code || at.name.split(' ')[0]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: MASK & CENSOR (KEYFRAMED MOTION TRACKING) */}
         {activeTab === 'blur' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{
