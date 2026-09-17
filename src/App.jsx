@@ -1267,6 +1267,7 @@ export default function App() {
           selectedClip={selectedClip}
           onUpdateBlurKeyframe={handleUpdateBlurKeyframe}
           onAddKeyframeAtPlayhead={handleAddKeyframeAtPlayhead}
+          onUpdateClip={handleUpdateClip}
           zoomLevel={zoomLevel}
           setZoomLevel={setZoomLevel}
         />
