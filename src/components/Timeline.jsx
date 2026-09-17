@@ -23,6 +23,8 @@ import {
   Minimize2,
   GripHorizontal,
   Bookmark,
+  Mic,
+  Square,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -58,11 +60,75 @@ export function Timeline({
   markers = [],
   onAddMarker,
   onDeleteMarker,
+  onAddVoiceoverTrack,
+  isPlaying = false,
+  onTogglePlay,
 }) {
   const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
   const headersScrollRef = useRef(null);
   const trackLaneRefs = useRef(new Map());
+
+  // Voiceover Recording State
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const [isRecordingVoiceover, setIsRecordingVoiceover] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+
+  const startVoiceoverRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      const recordStartTime = currentTime;
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const recordedDuration = Math.max(0.5, recordingSeconds);
+        if (onAddVoiceoverTrack) {
+          onAddVoiceoverTrack(audioBlob, recordStartTime, recordedDuration);
+        }
+        stream.getTracks().forEach((t) => t.stop());
+        setIsRecordingVoiceover(false);
+        setRecordingSeconds(0);
+        clearInterval(recordingTimerRef.current);
+      };
+
+      mediaRecorder.start(100);
+      setIsRecordingVoiceover(true);
+      setRecordingSeconds(0);
+
+      // Start playing timeline while recording
+      if (!isPlaying && onTogglePlay) {
+        onTogglePlay();
+      }
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 0.1);
+      }, 100);
+    } catch (err) {
+      console.error('Microphone access error:', err);
+      alert('Microphone access is required to record a voiceover. Please check your browser permissions.');
+    }
+  };
+
+  const stopVoiceoverRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (isPlaying && onTogglePlay) {
+      onTogglePlay();
+    }
+  };
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isResizingHeight, setIsResizingHeight] = useState(false);
@@ -630,6 +696,55 @@ export function Timeline({
             <Plus size={11} color="#34d399" />
             <span>+ Audio Track</span>
           </button>
+
+          <div style={{ width: 1, height: 16, background: '#25252e', margin: '0 3px' }} />
+
+          {/* Voiceover Recording Button */}
+          {isRecordingVoiceover ? (
+            <button
+              onClick={stopVoiceoverRecording}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 3,
+                background: '#dc2626',
+                border: '1px solid #ef4444',
+                color: '#ffffff',
+                fontSize: 11,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                animation: 'pulse 1.2s infinite',
+                boxShadow: '0 0 12px rgba(220, 38, 38, 0.7)',
+              }}
+              title="Click to Stop Voiceover Recording"
+            >
+              <Square size={10} fill="#ffffff" />
+              <span>Stop Rec ({recordingSeconds.toFixed(1)}s)</span>
+            </button>
+          ) : (
+            <button
+              onClick={startVoiceoverRecording}
+              title="Record Voiceover narration from microphone into Audio Track"
+              style={{
+                padding: '4px 8px',
+                borderRadius: 3,
+                background: '#24141d',
+                border: '1px solid #4a1f38',
+                color: '#f472b6',
+                fontSize: 11,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                cursor: 'pointer',
+              }}
+            >
+              <Mic size={12} color="#f472b6" />
+              <span>Record Voiceover</span>
+            </button>
+          )}
         </div>
 
         {/* Right Tools: Duration Mode & Timeline Zoom */}

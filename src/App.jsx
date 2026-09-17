@@ -17,6 +17,7 @@ import {
 } from './types/defaults';
 import {
   processImportedFile,
+  extractAudioPeaks,
 } from './utils/sampleMedia';
 
 export default function App() {
@@ -950,6 +951,30 @@ export default function App() {
     }
   };
 
+  // Add Voiceover recorded track from microphone
+  const handleAddVoiceoverTrack = useCallback(async (blob, startTime, duration) => {
+    try {
+      const url = URL.createObjectURL(blob);
+      const waveform = await extractAudioPeaks(blob);
+      const voiceoverCount = mediaAssets.filter((a) => a.name.startsWith('Voiceover')).length + 1;
+      const asset = {
+        id: 'voiceover-' + Math.random().toString(36).substring(2, 9),
+        name: `Voiceover ${voiceoverCount}`,
+        type: 'audio',
+        url,
+        duration: Math.round(duration * 100) / 100,
+        waveform,
+      };
+
+      setMediaAssets((prev) => [...prev, asset]);
+      // Automatically place voiceover on audio track A2 or A1 at the record start time
+      const targetAudioTrack = tracks.find((t) => t.id === 'track-a2') ? 'track-a2' : 'track-a1';
+      handleAddClipToTimeline(asset, targetAudioTrack, startTime);
+    } catch (err) {
+      console.error('Failed to process voiceover:', err);
+    }
+  }, [mediaAssets, tracks, handleAddClipToTimeline]);
+
   // --- Timeline Markers Handlers ---
   const handleAddMarker = useCallback((time = currentTimeRef.current, label = '', color = '#3b82f6') => {
     const roundedTime = Math.round(time * 100) / 100;
@@ -1293,6 +1318,9 @@ export default function App() {
         setTimelineHeight={setTimelineHeight}
         pxPerSecond={pxPerSecond}
         setPxPerSecond={setPxPerSecond}
+        onAddVoiceoverTrack={handleAddVoiceoverTrack}
+        isPlaying={isPlaying}
+        onTogglePlay={handleTogglePlay}
       />
 
       {/* Modals */}
