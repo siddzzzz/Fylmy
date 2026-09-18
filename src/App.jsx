@@ -37,8 +37,68 @@ export default function App() {
   const [durationMode, setDurationMode] = useState('auto'); // 'auto' | 'custom'
   const [customDuration, setCustomDuration] = useState(30);
 
-  // --- Timeline Height (Vertically Resizable / Expandable) ---
+  // --- Dock Sizing (Horizontally & Vertically Resizable) ---
   const [timelineHeight, setTimelineHeight] = useState(290);
+  const [leftDockWidth, setLeftDockWidth] = useState(300);
+  const [rightDockWidth, setRightDockWidth] = useState(280);
+  const [isResizingLeftDock, setIsResizingLeftDock] = useState(false);
+  const [isResizingRightDock, setIsResizingRightDock] = useState(false);
+
+  // Start horizontal resize dragging for left MediaBin dock
+  const startLeftDockResize = (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setIsResizingLeftDock(true);
+    const startX = e.clientX;
+    const startW = leftDockWidth;
+
+    const onMove = (moveEv) => {
+      const deltaX = moveEv.clientX - startX;
+      const newWidth = Math.max(220, Math.min(window.innerWidth * 0.5, startW + deltaX));
+      setLeftDockWidth(Math.round(newWidth));
+    };
+
+    const onUp = () => {
+      setIsResizingLeftDock(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // Start horizontal resize dragging for right Inspector dock
+  const startRightDockResize = (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setIsResizingRightDock(true);
+    const startX = e.clientX;
+    const startW = rightDockWidth;
+
+    const onMove = (moveEv) => {
+      const deltaX = startX - moveEv.clientX; // dragging left increases right dock width
+      const newWidth = Math.max(220, Math.min(window.innerWidth * 0.5, startW + deltaX));
+      setRightDockWidth(Math.round(newWidth));
+    };
+
+    const onUp = () => {
+      setIsResizingRightDock(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
 
   // --- Modals State ---
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -1241,7 +1301,7 @@ export default function App() {
       />
 
       {/* 2. Middle Workspace (Left MediaBin + Center Preview + Right Inspector) */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <MediaBin
           mediaAssets={mediaAssets}
           tracks={tracks}
@@ -1253,6 +1313,29 @@ export default function App() {
           onAddTrack={handleAddTrack}
           selectedClip={selectedClip}
           onRenameMediaAsset={handleRenameMediaAsset}
+          width={leftDockWidth}
+        />
+
+        {/* Left Dock Horizontal Resize Splitter Handle */}
+        <div
+          onMouseDown={startLeftDockResize}
+          style={{
+            width: 5,
+            cursor: 'col-resize',
+            background: isResizingLeftDock ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
+            zIndex: 30,
+            transition: 'background 0.15s',
+            userSelect: 'none',
+            flexShrink: 0,
+            margin: '0 -2px',
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingLeftDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingLeftDock) e.currentTarget.style.background = 'transparent';
+          }}
+          title="Drag to resize left dock"
         />
 
         <PreviewPlayer
@@ -1272,6 +1355,28 @@ export default function App() {
           setZoomLevel={setZoomLevel}
         />
 
+        {/* Right Dock Horizontal Resize Splitter Handle */}
+        <div
+          onMouseDown={startRightDockResize}
+          style={{
+            width: 5,
+            cursor: 'col-resize',
+            background: isResizingRightDock ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
+            zIndex: 30,
+            transition: 'background 0.15s',
+            userSelect: 'none',
+            flexShrink: 0,
+            margin: '0 -2px',
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingRightDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingRightDock) e.currentTarget.style.background = 'transparent';
+          }}
+          title="Drag to resize right dock"
+        />
+
         <Inspector
           selectedClip={selectedClip}
           tracks={tracks}
@@ -1283,6 +1388,7 @@ export default function App() {
           onSeek={handleSeek}
           onAddKeyframeAtPlayhead={handleAddKeyframeAtPlayhead}
           onDeleteKeyframe={handleDeleteKeyframe}
+          width={rightDockWidth}
         />
       </div>
 

@@ -33,6 +33,7 @@ export function MediaBin({
   onAddTrack,
   selectedClip,
   onRenameMediaAsset,
+  width = 300,
 }) {
   const [activeTab, setActiveTab] = useState('media'); // 'media' | 'sfx' | 'blur' | 'text' | 'filters'
   const [hoveredScrubAssetId, setHoveredScrubAssetId] = useState(null);
@@ -71,14 +72,16 @@ export function MediaBin({
 
   return (
     <aside style={{
-      width: 300,
-      minWidth: 300,
+      width,
+      minWidth: 220,
+      maxWidth: '50vw',
       background: 'var(--bg-panel)',
       borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
       zIndex: 20,
+      flexShrink: 0,
     }}>
       {/* Workstation Tab Header */}
       <div style={{

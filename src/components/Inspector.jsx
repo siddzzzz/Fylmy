@@ -28,12 +28,14 @@ export function Inspector({
   onSeek,
   onAddKeyframeAtPlayhead,
   onDeleteKeyframe,
+  width = 280,
 }) {
   if (!selectedClip) {
     return (
       <aside style={{
-        width: 280,
-        minWidth: 280,
+        width,
+        minWidth: 220,
+        maxWidth: '50vw',
         background: 'var(--bg-panel)',
         borderLeft: '1px solid var(--border-subtle)',
         display: 'flex',
@@ -43,6 +45,9 @@ export function Inspector({
         padding: 20,
         textAlign: 'center',
         color: '#64748b',
+        height: '100%',
+        zIndex: 20,
+        flexShrink: 0,
       }}>
         <Sliders size={28} style={{ opacity: 0.25, marginBottom: 10 }} />
         <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8', marginBottom: 4 }}>
@@ -111,8 +116,9 @@ export function Inspector({
 
   return (
     <aside style={{
-      width: 280,
-      minWidth: 280,
+      width,
+      minWidth: 220,
+      maxWidth: '50vw',
       background: 'var(--bg-panel)',
       borderLeft: '1px solid var(--border-subtle)',
       display: 'flex',
@@ -120,6 +126,7 @@ export function Inspector({
       height: '100%',
       overflowY: 'auto',
       zIndex: 20,
+      flexShrink: 0,
     }}>
       {/* Inspector Header with Inline Rename Option */}
       <div style={{
