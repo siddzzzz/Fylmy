@@ -71,8 +71,8 @@ export function MediaBin({
 
   return (
     <aside style={{
-      width: 290,
-      minWidth: 290,
+      width: 300,
+      minWidth: 300,
       background: 'var(--bg-panel)',
       borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
@@ -83,17 +83,19 @@ export function MediaBin({
       {/* Workstation Tab Header */}
       <div style={{
         display: 'flex',
+        alignItems: 'center',
         borderBottom: '1px solid var(--border-subtle)',
         background: '#131316',
-        padding: '3px 4px',
-        gap: 3,
+        padding: '4px',
+        gap: 2,
+        overflowX: 'auto',
       }}>
         {[
-          { id: 'media', label: 'Media Pool', icon: FolderOpen },
-          { id: 'sfx', label: 'Sound FX', icon: Music },
-          { id: 'blur', label: 'Mask / Censor', icon: Target },
-          { id: 'text', label: 'Titles', icon: Type },
-          { id: 'filters', label: 'Color LUTs', icon: Sliders },
+          { id: 'media', label: 'Media', fullLabel: 'Media Pool', icon: FolderOpen },
+          { id: 'sfx', label: 'SFX', fullLabel: 'Sound FX', icon: Music },
+          { id: 'blur', label: 'Mask', fullLabel: 'Mask / Censor', icon: Target },
+          { id: 'text', label: 'Titles', fullLabel: 'Titles & Captions', icon: Type },
+          { id: 'filters', label: 'Color', fullLabel: 'Color LUTs', icon: Sliders },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -101,19 +103,28 @@ export function MediaBin({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              title={tab.fullLabel}
               style={{
                 flex: 1,
-                padding: '6px 3px',
+                minWidth: 0,
+                padding: '6px 2px',
                 borderRadius: 3,
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: isActive ? 700 : 500,
                 background: isActive ? '#24242c' : 'transparent',
                 color: isActive ? '#f8fafc' : '#71717a',
                 border: isActive ? '1px solid #383844' : '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
-              <Icon size={12} />
-              <span>{tab.label}</span>
+              <Icon size={12} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.label}</span>
             </button>
           );
         })}
