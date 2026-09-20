@@ -1320,22 +1320,23 @@ export default function App() {
         <div
           onMouseDown={startLeftDockResize}
           style={{
-            width: 5,
+            width: 8,
             cursor: 'col-resize',
-            background: isResizingLeftDock ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
-            zIndex: 30,
+            background: isResizingLeftDock ? '#3b82f6' : 'transparent',
+            zIndex: 35,
             transition: 'background 0.15s',
             userSelect: 'none',
             flexShrink: 0,
-            margin: '0 -2px',
+            margin: '0 -4px',
+            position: 'relative',
           }}
           onMouseEnter={(e) => {
-            if (!isResizingLeftDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+            if (!isResizingLeftDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.4)';
           }}
           onMouseLeave={(e) => {
             if (!isResizingLeftDock) e.currentTarget.style.background = 'transparent';
           }}
-          title="Drag to resize left dock"
+          title="Drag to resize left dock (Media Bin)"
         />
 
         <PreviewPlayer
@@ -1359,22 +1360,23 @@ export default function App() {
         <div
           onMouseDown={startRightDockResize}
           style={{
-            width: 5,
+            width: 8,
             cursor: 'col-resize',
-            background: isResizingRightDock ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
-            zIndex: 30,
+            background: isResizingRightDock ? '#3b82f6' : 'transparent',
+            zIndex: 35,
             transition: 'background 0.15s',
             userSelect: 'none',
             flexShrink: 0,
-            margin: '0 -2px',
+            margin: '0 -4px',
+            position: 'relative',
           }}
           onMouseEnter={(e) => {
-            if (!isResizingRightDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+            if (!isResizingRightDock) e.currentTarget.style.background = 'rgba(59, 130, 246, 0.4)';
           }}
           onMouseLeave={(e) => {
             if (!isResizingRightDock) e.currentTarget.style.background = 'transparent';
           }}
-          title="Drag to resize right dock"
+          title="Drag to resize right dock (Inspector)"
         />
 
         <Inspector
