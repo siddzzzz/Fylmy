@@ -232,3 +232,60 @@ export function calculateEffectiveVolume(clip, relativeTime) {
 
   return Math.max(0, Math.min(1.5, baseVol * fadeMultiplier));
 }
+
+export const AUDIO_EQ_PRESETS = [
+  {
+    id: 'flat',
+    name: 'Flat / Studio Direct',
+    desc: 'Transparent reference curve',
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    lowCut: false,
+  },
+  {
+    id: 'podcast_vocal',
+    name: '🎙️ Podcast Vocal Enhancer',
+    desc: 'Crisp voice presence + 80Hz rumble cut',
+    bass: 1.5,
+    mid: 3.5,
+    treble: 4.5,
+    lowCut: true,
+  },
+  {
+    id: 'bass_boost',
+    name: '🔊 Bass Boost / 808 Warmth',
+    desc: 'Punchy low-end for beats & cinematic hits',
+    bass: 6.0,
+    mid: -1.0,
+    treble: 2.0,
+    lowCut: false,
+  },
+  {
+    id: 'lofi_radio',
+    name: '📻 Lo-Fi Vintage Radio',
+    desc: 'Classic bandpass telephone & radio filter',
+    bass: -8.0,
+    mid: 6.0,
+    treble: -10.0,
+    lowCut: true,
+  },
+  {
+    id: 'de_hum',
+    name: '🧹 De-Hum / AC Rumble Filter',
+    desc: 'Aggressive low-end cut to remove background room noise',
+    bass: -4.0,
+    mid: 0,
+    treble: 1.0,
+    lowCut: true,
+  },
+  {
+    id: 'cinematic_clarity',
+    name: '🎬 Cinematic Trailer Clarity',
+    desc: 'Rich low thump with ultra-crisp highs',
+    bass: 4.0,
+    mid: -2.0,
+    treble: 5.0,
+    lowCut: false,
+  },
+];

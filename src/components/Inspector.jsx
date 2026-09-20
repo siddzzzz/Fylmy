@@ -14,8 +14,11 @@ import {
   Plus,
   Edit2,
   Check,
+  Activity,
+  Radio,
+  Mic,
 } from 'lucide-react';
-import { formatSecondsOnly, TRANSITION_TYPES, PIP_PRESETS, SPEED_PRESETS } from '../types/defaults';
+import { formatSecondsOnly, TRANSITION_TYPES, PIP_PRESETS, SPEED_PRESETS, AUDIO_EQ_PRESETS } from '../types/defaults';
 
 export function Inspector({
   selectedClip,
@@ -806,6 +809,175 @@ export function Inspector({
                     </div>
                   )}
                 </div>
+
+                {/* Parametric Equalizer & Vocal Enhancer */}
+                <div style={{
+                  marginTop: 10,
+                  padding: '9px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Activity size={12} color="#38bdf8" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                        3-Band Equalizer & Enhancer
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 1-Click EQ Preset Selector */}
+                  <div style={{ marginBottom: 8 }}>
+                    <select
+                      value={selectedClip.audioEq?.presetId || 'flat'}
+                      onChange={(e) => {
+                        const preset = AUDIO_EQ_PRESETS.find((p) => p.id === e.target.value) || AUDIO_EQ_PRESETS[0];
+                        onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            presetId: preset.id,
+                            bass: preset.bass,
+                            mid: preset.mid,
+                            treble: preset.treble,
+                            lowCut: preset.lowCut,
+                          },
+                        });
+                      }}
+                      style={{
+                        width: '100%',
+                        background: '#191920',
+                        border: '1px solid #383848',
+                        color: '#f1f5f9',
+                        padding: '5px 6px',
+                        borderRadius: 3,
+                        fontSize: 10.5,
+                        outline: 'none',
+                      }}
+                    >
+                      {AUDIO_EQ_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3 Frequency Bands Sliders */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Bass */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Bass (120Hz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.bass !== undefined ? `${selectedClip.audioEq.bass > 0 ? '+' : ''}${selectedClip.audioEq.bass}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.bass ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            bass: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Mid */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Mid Vocal (1.5kHz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.mid !== undefined ? `${selectedClip.audioEq.mid > 0 ? '+' : ''}${selectedClip.audioEq.mid}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.mid ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            mid: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Treble */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Treble Air (7kHz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.treble !== undefined ? `${selectedClip.audioEq.treble > 0 ? '+' : ''}${selectedClip.audioEq.treble}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.treble ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            treble: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Low-Cut De-Hum Toggle */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 4,
+                      paddingTop: 6,
+                      borderTop: '1px solid #24242e',
+                    }}>
+                      <span style={{ fontSize: 10, color: '#cbd5e1' }}>80Hz Low-Cut (De-Hum)</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedClip.audioEq?.lowCut ?? false}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            lowCut: e.target.checked,
+                          },
+                        })}
+                        style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Automatic Audio Ducking */}
+                <div style={{
+                  marginTop: 8,
+                  padding: '8px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: '#f1f5f9' }}>Auto Audio Ducking</div>
+                    <div style={{ fontSize: 9.5, color: '#64748b' }}>Dips volume when voiceover talks</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={selectedClip.audioDucking ?? false}
+                    onChange={(e) => onUpdateClip(selectedClip.id, { audioDucking: e.target.checked })}
+                    style={{ accentColor: '#3b82f6', cursor: 'pointer' }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1399,6 +1571,175 @@ export function Inspector({
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Parametric Equalizer & Vocal Enhancer */}
+                <div style={{
+                  marginTop: 10,
+                  padding: '9px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Activity size={12} color="#10b981" />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                        3-Band Equalizer & Enhancer
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 1-Click EQ Preset Selector */}
+                  <div style={{ marginBottom: 8 }}>
+                    <select
+                      value={selectedClip.audioEq?.presetId || 'flat'}
+                      onChange={(e) => {
+                        const preset = AUDIO_EQ_PRESETS.find((p) => p.id === e.target.value) || AUDIO_EQ_PRESETS[0];
+                        onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            presetId: preset.id,
+                            bass: preset.bass,
+                            mid: preset.mid,
+                            treble: preset.treble,
+                            lowCut: preset.lowCut,
+                          },
+                        });
+                      }}
+                      style={{
+                        width: '100%',
+                        background: '#191920',
+                        border: '1px solid #383848',
+                        color: '#f1f5f9',
+                        padding: '5px 6px',
+                        borderRadius: 3,
+                        fontSize: 10.5,
+                        outline: 'none',
+                      }}
+                    >
+                      {AUDIO_EQ_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3 Frequency Bands Sliders */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Bass */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Bass (120Hz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.bass !== undefined ? `${selectedClip.audioEq.bass > 0 ? '+' : ''}${selectedClip.audioEq.bass}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.bass ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            bass: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Mid */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Mid Vocal (1.5kHz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.mid !== undefined ? `${selectedClip.audioEq.mid > 0 ? '+' : ''}${selectedClip.audioEq.mid}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.mid ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            mid: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Treble */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94a3b8', marginBottom: 2 }}>
+                        <span>Treble Air (7kHz)</span>
+                        <span className="val-badge">{selectedClip.audioEq?.treble !== undefined ? `${selectedClip.audioEq.treble > 0 ? '+' : ''}${selectedClip.audioEq.treble}dB` : '0dB'}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-12"
+                        max="12"
+                        step="0.5"
+                        value={selectedClip.audioEq?.treble ?? 0}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            presetId: 'custom',
+                            treble: parseFloat(e.target.value),
+                          },
+                        })}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    {/* Low-Cut De-Hum Toggle */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 4,
+                      paddingTop: 6,
+                      borderTop: '1px solid #24242e',
+                    }}>
+                      <span style={{ fontSize: 10, color: '#cbd5e1' }}>80Hz Low-Cut (De-Hum)</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedClip.audioEq?.lowCut ?? false}
+                        onChange={(e) => onUpdateClip(selectedClip.id, {
+                          audioEq: {
+                            ...(selectedClip.audioEq || {}),
+                            lowCut: e.target.checked,
+                          },
+                        })}
+                        style={{ accentColor: '#10b981', cursor: 'pointer' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Automatic Audio Ducking */}
+                <div style={{
+                  marginTop: 8,
+                  padding: '8px',
+                  background: '#141418',
+                  borderRadius: 4,
+                  border: '1px solid #282834',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: '#f1f5f9' }}>Auto Audio Ducking</div>
+                    <div style={{ fontSize: 9.5, color: '#64748b' }}>Dips volume when voiceover talks</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={selectedClip.audioDucking ?? false}
+                    onChange={(e) => onUpdateClip(selectedClip.id, { audioDucking: e.target.checked })}
+                    style={{ accentColor: '#10b981', cursor: 'pointer' }}
+                  />
                 </div>
               </div>
             </div>

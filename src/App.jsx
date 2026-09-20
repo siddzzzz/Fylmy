@@ -284,6 +284,22 @@ export default function App() {
 
   // Seek and sync all media elements to a specific timestamp
   const seekAllMedia = useCallback((targetTime, playing) => {
+    // 1. Check if any voiceover/speech or dialogue clip is actively playing for Audio Ducking
+    let isVoiceActiveAtTime = false;
+    for (const track of tracks) {
+      if (track.muted) continue;
+      const isVoiceTrack = track.name?.toLowerCase().includes('voice') || track.id === 'track-a2' || track.code === 'A2';
+      if (isVoiceTrack) {
+        for (const clip of track.clips) {
+          if (targetTime >= clip.start && targetTime < clip.start + clip.duration) {
+            isVoiceActiveAtTime = true;
+            break;
+          }
+        }
+      }
+      if (isVoiceActiveAtTime) break;
+    }
+
     for (const track of tracks) {
       for (const clip of track.clips) {
         const mediaEl = mediaElementsRef.current.get(clip.id) || mediaElementsRef.current.get(clip.assetId);
@@ -294,15 +310,22 @@ export default function App() {
         if (isClipActive) {
           const relTime = targetTime - clip.start;
           const desiredMediaTime = relTime * (clip.speed || 1) + (clip.offset || 0);
-          const effectiveClipVol = calculateEffectiveVolume(clip, relTime);
+          let effectiveClipVol = calculateEffectiveVolume(clip, relTime);
 
-          // Connect Web Audio
+          // Apply Audio Ducking if enabled on this clip and voiceover is talking
+          if (clip.audioDucking && isVoiceActiveAtTime) {
+            const duckingAmount = clip.duckingAmount !== undefined ? clip.duckingAmount : 0.6; // reduce by ~60% (-8dB)
+            effectiveClipVol *= (1 - duckingAmount);
+          }
+
+          // Connect Web Audio with Parametric EQ
           if (audioEngineRef.current && (mediaEl instanceof HTMLVideoElement || mediaEl instanceof HTMLAudioElement)) {
             audioEngineRef.current.connectMediaElement(
               mediaEl,
               track.volume,
               effectiveClipVol,
-              track.muted
+              track.muted,
+              clip.audioEq || null
             );
           }
 
