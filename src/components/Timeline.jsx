@@ -25,6 +25,9 @@ import {
   Bookmark,
   Mic,
   Square,
+  MousePointer,
+  Split,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { formatSecondsOnly, formatTimecode } from '../types/defaults';
 
@@ -41,7 +44,9 @@ export function Timeline({
   selectedClipId,
   onSelectClip,
   onSplitClip,
+  onSplitAllTracks,
   onDeleteClip,
+  onRippleDeleteClip,
   onDuplicateClip,
   onUpdateClip,
   onMoveClipToTrack,
@@ -64,6 +69,7 @@ export function Timeline({
   isPlaying = false,
   onTogglePlay,
 }) {
+  const [activeTool, setActiveTool] = useState('arrow'); // 'arrow' | 'razor' | 'slip'
   const rulerScrollRef = useRef(null);
   const lanesScrollRef = useRef(null);
   const headersScrollRef = useRef(null);
@@ -377,6 +383,16 @@ export function Timeline({
           onUpdateClip(dragInfo.clipId, {
             duration: Math.round(newDuration * 100) / 100,
           });
+
+        } else if (dragInfo.mode === 'slip') {
+          // Slip tool: adjusts source media offset without moving start or changing duration
+          const maxSourceDuration = dragInfo.maxSourceDuration || 3600;
+          const maxOffset = Math.max(0, maxSourceDuration - dragInfo.initDuration);
+          const newOffset = Math.max(0, Math.min(maxOffset, (dragInfo.initOffset || 0) + deltaTime));
+
+          onUpdateClip(dragInfo.clipId, {
+            offset: Math.round(newOffset * 100) / 100,
+          });
         }
       }
     };
@@ -561,14 +577,79 @@ export function Timeline({
         flexShrink: 0,
       }}>
         {/* Left Tools */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {/* Tool Modes (Arrow, Razor, Slip) */}
+          <div style={{ display: 'flex', background: '#101014', padding: '2px', borderRadius: 4, border: '1px solid #282834', gap: 2 }}>
+            <button
+              onClick={() => setActiveTool('arrow')}
+              title="Selection / Pointer Tool (V)"
+              style={{
+                padding: '3px 6px',
+                borderRadius: 3,
+                background: activeTool === 'arrow' ? '#242430' : 'transparent',
+                color: activeTool === 'arrow' ? '#60a5fa' : '#71717a',
+                border: activeTool === 'arrow' ? '1px solid #3d3d50' : '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10.5,
+                fontWeight: activeTool === 'arrow' ? 700 : 500,
+              }}
+            >
+              <MousePointer size={11} />
+              <span>Select</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTool('razor')}
+              title="Razor Cut Tool (C)"
+              style={{
+                padding: '3px 6px',
+                borderRadius: 3,
+                background: activeTool === 'razor' ? '#242430' : 'transparent',
+                color: activeTool === 'razor' ? '#f59e0b' : '#71717a',
+                border: activeTool === 'razor' ? '1px solid #3d3d50' : '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10.5,
+                fontWeight: activeTool === 'razor' ? 700 : 500,
+              }}
+            >
+              <Scissors size={11} />
+              <span>Razor</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTool('slip')}
+              title="Slip Trim Tool (Y) - Drag inside clip to adjust in/out without moving timeline position"
+              style={{
+                padding: '3px 6px',
+                borderRadius: 3,
+                background: activeTool === 'slip' ? '#242430' : 'transparent',
+                color: activeTool === 'slip' ? '#34d399' : '#71717a',
+                border: activeTool === 'slip' ? '1px solid #3d3d50' : '1px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10.5,
+                fontWeight: activeTool === 'slip' ? 700 : 500,
+              }}
+            >
+              <ArrowLeftRight size={11} />
+              <span>Slip</span>
+            </button>
+          </div>
+
+          <div style={{ width: 1, height: 16, background: '#25252e', margin: '0 2px' }} />
+
           {/* Split (Razor) Tool */}
           <button
             onClick={onSplitClip}
             disabled={!selectedClipId}
             title="Razor Split Selected Clip at Playhead (S)"
             style={{
-              padding: '4px 8px',
+              padding: '4px 7px',
               borderRadius: 3,
               background: selectedClipId ? '#242430' : '#18181e',
               color: selectedClipId ? '#f8fafc' : '#52525b',
@@ -578,16 +659,53 @@ export function Timeline({
             }}
           >
             <Scissors size={12} color={selectedClipId ? '#60a5fa' : '#52525b'} />
-            <span>Razor (S)</span>
+            <span>Split (S)</span>
           </button>
 
-          {/* Delete Tool */}
+          {/* Split All Tracks at Playhead */}
+          <button
+            onClick={onSplitAllTracks}
+            title="Razor Cut Across ALL Tracks at Playhead (Shift + S)"
+            style={{
+              padding: '4px 7px',
+              borderRadius: 3,
+              background: '#191924',
+              color: '#a5b4fc',
+              fontSize: 11,
+              fontWeight: 600,
+              border: '1px solid #373752',
+            }}
+          >
+            <Split size={12} color="#818cf8" />
+            <span>Split All (⇧S)</span>
+          </button>
+
+          {/* Ripple Delete Tool */}
+          <button
+            onClick={() => onRippleDeleteClip && onRippleDeleteClip(selectedClipId)}
+            disabled={!selectedClipId}
+            title="Ripple Delete: Delete clip and pull subsequent clips left to close gap (Shift + Del)"
+            style={{
+              padding: '4px 7px',
+              borderRadius: 3,
+              background: selectedClipId ? '#291818' : '#18181e',
+              border: selectedClipId ? '1px solid #582424' : '1px solid #22222a',
+              color: selectedClipId ? '#fca5a5' : '#52525b',
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            <Trash2 size={12} color={selectedClipId ? '#ef4444' : '#52525b'} />
+            <span>Ripple Del (⇧Del)</span>
+          </button>
+
+          {/* Standard Delete Tool */}
           <button
             onClick={() => onDeleteClip(selectedClipId)}
             disabled={!selectedClipId}
             title="Delete Selected Clip (Del)"
             style={{
-              padding: '4px 8px',
+              padding: '4px 7px',
               borderRadius: 3,
               background: '#18181e',
               border: '1px solid #22222a',
@@ -605,7 +723,7 @@ export function Timeline({
             disabled={!selectedClipId}
             title="Duplicate Clip (Ctrl+D)"
             style={{
-              padding: '4px 8px',
+              padding: '4px 7px',
               borderRadius: 3,
               background: '#18181e',
               border: '1px solid #22222a',
@@ -617,7 +735,7 @@ export function Timeline({
             <span>Duplicate</span>
           </button>
 
-          <div style={{ width: 1, height: 16, background: '#25252e', margin: '0 3px' }} />
+          <div style={{ width: 1, height: 16, background: '#25252e', margin: '0 2px' }} />
 
           {/* Magnetic Snapping */}
           <button
@@ -1405,6 +1523,9 @@ export function Timeline({
                       const clipLeft = displayStart * pxPerSecond;
                       const clipWidth = Math.max(10, clip.duration * pxPerSecond);
 
+                      const asset = mediaAssets.find((a) => a.id === clip.assetId);
+                      const maxSourceDuration = asset?.duration || clip.duration * 4 || 3600;
+
                       return (
                         <div
                           key={clip.id}
@@ -1412,25 +1533,58 @@ export function Timeline({
                           onClick={(e) => {
                             e.stopPropagation();
                             onSelectClip(clip.id);
+
+                            // If Razor tool is active, clicking directly cuts the clip at click position
+                            if (activeTool === 'razor' && !track.locked) {
+                              const clickTime = clientXToTime(e.clientX, snapEnabled);
+                              if (clickTime > clip.start && clickTime < clip.start + clip.duration) {
+                                onSeek(clickTime);
+                                if (onSplitClip) onSplitClip();
+                              }
+                            }
                           }}
                           onMouseDown={(e) => {
                             if (track.locked) return;
                             e.stopPropagation();
                             onSelectClip(clip.id);
-                            setDragInfo({
-                              mode: 'move',
-                              clipId: clip.id,
-                              clip: clip,
-                              sourceTrackId: track.id,
-                              targetTrackId: track.id,
-                              clipType: track.type,
-                              startX: e.clientX,
-                              startY: e.clientY,
-                              initStart: clip.start,
-                              initDuration: clip.duration,
-                              initOffset: clip.offset || 0,
-                              currentStart: clip.start,
-                            });
+
+                            if (activeTool === 'slip') {
+                              // Activate Slip tool dragging
+                              setDragInfo({
+                                mode: 'slip',
+                                clipId: clip.id,
+                                clip: clip,
+                                sourceTrackId: track.id,
+                                targetTrackId: track.id,
+                                clipType: track.type,
+                                startX: e.clientX,
+                                startY: e.clientY,
+                                initStart: clip.start,
+                                initDuration: clip.duration,
+                                initOffset: clip.offset || 0,
+                                maxSourceDuration: maxSourceDuration,
+                              });
+                            } else if (activeTool === 'razor') {
+                              // Razor cut mode on click
+                              const clickTime = clientXToTime(e.clientX, snapEnabled);
+                              onSeek(clickTime);
+                            } else {
+                              // Default pointer move mode
+                              setDragInfo({
+                                mode: 'move',
+                                clipId: clip.id,
+                                clip: clip,
+                                sourceTrackId: track.id,
+                                targetTrackId: track.id,
+                                clipType: track.type,
+                                startX: e.clientX,
+                                startY: e.clientY,
+                                initStart: clip.start,
+                                initDuration: clip.duration,
+                                initOffset: clip.offset || 0,
+                                currentStart: clip.start,
+                              });
+                            }
                           }}
                           style={{
                             position: 'absolute',
@@ -1453,7 +1607,13 @@ export function Timeline({
                               : isBeingDragged && !isMovingToDifferentTrack
                               ? '0 0 12px rgba(59, 130, 246, 0.55), 0 2px 8px rgba(0,0,0,0.7)'
                               : '0 1px 3px rgba(0,0,0,0.5)',
-                            cursor: track.locked ? 'not-allowed' : 'grab',
+                            cursor: track.locked
+                              ? 'not-allowed'
+                              : activeTool === 'razor'
+                              ? 'crosshair'
+                              : activeTool === 'slip'
+                              ? 'col-resize'
+                              : 'grab',
                             display: 'flex',
                             alignItems: 'center',
                             padding: '0 6px',

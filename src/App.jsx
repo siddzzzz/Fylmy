@@ -670,6 +670,39 @@ export default function App() {
     if (selectedClipId === clipId) setSelectedClipId(null);
   }, [selectedClipId, pushHistory]);
 
+  // Ripple Delete: Deletes clip and shifts all subsequent clips on the same track to close gap
+  const handleRippleDeleteClip = useCallback((clipId) => {
+    if (!clipId) return;
+    setTracks((prevTracks) => {
+      pushHistory(prevTracks);
+      return prevTracks.map((t) => {
+        const targetClip = t.clips.find((c) => c.id === clipId);
+        if (!targetClip) return t;
+
+        const gapDuration = targetClip.duration;
+        const clipStartTime = targetClip.start;
+
+        const filteredAndShifted = t.clips
+          .filter((c) => c.id !== clipId)
+          .map((c) => {
+            if (c.start >= clipStartTime) {
+              return {
+                ...c,
+                start: Math.max(0, Math.round((c.start - gapDuration) * 100) / 100),
+              };
+            }
+            return c;
+          });
+
+        return {
+          ...t,
+          clips: filteredAndShifted,
+        };
+      });
+    });
+    if (selectedClipId === clipId) setSelectedClipId(null);
+  }, [selectedClipId, pushHistory]);
+
   const handleDuplicateClip = useCallback(() => {
     if (!selectedClip) return;
     const duplicated = {
@@ -734,6 +767,52 @@ export default function App() {
 
     setSelectedClipId(secondClip.id);
   }, [selectedClip, currentTime, pushHistory]);
+
+  // Split all active clips across all unlocked tracks at playhead position
+  const handleSplitAllTracksAtPlayhead = useCallback(() => {
+    const splitTime = currentTime;
+    setTracks((prevTracks) => {
+      let anySplit = false;
+      const nextTracks = prevTracks.map((t) => {
+        if (t.locked) return t;
+
+        const newClips = [];
+        for (const clip of t.clips) {
+          if (splitTime > clip.start && splitTime < clip.start + clip.duration) {
+            anySplit = true;
+            const firstDuration = splitTime - clip.start;
+            const secondDuration = clip.duration - firstDuration;
+            const secondOffset = (clip.offset || 0) + firstDuration * (clip.speed || 1);
+
+            const firstClip = {
+              ...clip,
+              duration: Math.round(firstDuration * 100) / 100,
+            };
+
+            const secondClip = {
+              ...JSON.parse(JSON.stringify(clip)),
+              id: 'clip-' + Math.random().toString(36).substring(2, 9),
+              name: `${clip.name} (Part 2)`,
+              start: Math.round(splitTime * 100) / 100,
+              duration: Math.round(secondDuration * 100) / 100,
+              offset: Math.round(secondOffset * 100) / 100,
+            };
+
+            newClips.push(firstClip, secondClip);
+          } else {
+            newClips.push(clip);
+          }
+        }
+        return { ...t, clips: newClips };
+      });
+
+      if (anySplit) {
+        pushHistory(prevTracks);
+        return nextTracks;
+      }
+      return prevTracks;
+    });
+  }, [currentTime, pushHistory]);
 
   // Keyframe Blur Tracking Management
   const handleUpdateBlurKeyframe = useCallback((clipId, relativeTime, newProps) => {
@@ -1181,14 +1260,22 @@ export default function App() {
         handleStepFrame(-5);
       } else if (e.code === 'KeyS' || e.code === 'KeyC') {
         e.preventDefault();
-        handleSplitClip();
+        if (e.shiftKey) {
+          handleSplitAllTracksAtPlayhead();
+        } else {
+          handleSplitClip();
+        }
       } else if (e.code === 'KeyM') {
         e.preventDefault();
         handleAddMarker();
       } else if (e.code === 'Delete' || e.code === 'Backspace') {
         if (selectedClipId) {
           e.preventDefault();
-          handleDeleteClip(selectedClipId);
+          if (e.shiftKey) {
+            handleRippleDeleteClip(selectedClipId);
+          } else {
+            handleDeleteClip(selectedClipId);
+          }
         }
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
@@ -1431,7 +1518,9 @@ export default function App() {
         selectedClipId={selectedClipId}
         onSelectClip={setSelectedClipId}
         onSplitClip={handleSplitClip}
+        onSplitAllTracks={handleSplitAllTracksAtPlayhead}
         onDeleteClip={handleDeleteClip}
+        onRippleDeleteClip={handleRippleDeleteClip}
         onDuplicateClip={handleDuplicateClip}
         onUpdateClip={handleUpdateClip}
         onMoveClipToTrack={handleMoveClipToTrack}
